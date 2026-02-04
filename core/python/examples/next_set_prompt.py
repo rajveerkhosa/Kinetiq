@@ -5,7 +5,12 @@ Run from core/python:
     python examples/next_set_prompt.py
 """
 
-from kinetiq_core import Unit, UserSettings, SetLog, suggest_next_set, ExerciseConfig
+from __future__ import annotations
+
+from kinetiq_core import Unit, UserSettings, SetLog, suggest_next_set, make_exercise
+
+
+TARGET_RPE_RANGE = (7.0, 9.0)
 
 
 def ask_nonempty(prompt: str) -> str:
@@ -13,100 +18,129 @@ def ask_nonempty(prompt: str) -> str:
         s = input(prompt).strip()
         if s:
             return s
-        print("Please enter a value.")
+        print("Please enter a value.\n")
 
 
-def ask_unit() -> Unit:
+def ask_unit(default: Unit = Unit.LB) -> Unit:
     while True:
-        s = input("Units (lb/kg) [lb]: ").strip().lower()
-        if s == "" or s in ("lb", "lbs"):
+        s = input(f"Units (lb/kg) [{default.value}]: ").strip().lower()
+        if s == "":
+            return default
+        if s in ("lb", "lbs"):
             return Unit.LB
         if s in ("kg", "kgs"):
             return Unit.KG
-        print("Please enter 'lb' or 'kg'.")
+        print("Please enter 'lb' or 'kg'.\n")
 
 
-def ask_int(prompt: str) -> int:
+def ask_int_in_range(prompt: str, lo: int, hi: int) -> int:
     while True:
         s = input(prompt).strip()
         try:
             v = int(s)
-            if v >= 1:
+            if lo <= v <= hi:
                 return v
-            print("Enter an integer >= 1.")
+            print(f"Enter an integer between {lo} and {hi}.\n")
         except ValueError:
-            print("Enter a valid integer.")
+            print("Enter a valid integer.\n")
 
 
-def ask_float(prompt: str, lo: float | None = None, hi: float | None = None) -> float:
+def ask_int_min(prompt: str, lo: int) -> int:
+    while True:
+        s = input(prompt).strip()
+        try:
+            v = int(s)
+            if v >= lo:
+                return v
+            print(f"Enter an integer >= {lo}.\n")
+        except ValueError:
+            print("Enter a valid integer.\n")
+
+
+def ask_float_min(prompt: str, lo: float) -> float:
     while True:
         s = input(prompt).strip()
         try:
             v = float(s)
-            if lo is not None and v < lo:
-                print(f"Enter a number >= {lo}.")
-                continue
-            if hi is not None and v > hi:
-                print(f"Enter a number <= {hi}.")
-                continue
-            return v
+            if v >= lo:
+                return v
+            print(f"Enter a number >= {lo}.\n")
         except ValueError:
-            print("Enter a valid number.")
+            print("Enter a valid number.\n")
 
 
-def main():
+def ask_rpe(prompt: str = "RPE (1–10): ") -> float:
+    while True:
+        s = input(prompt).strip()
+        try:
+            v = float(s)
+            if 1.0 <= v <= 10.0:
+                return v
+            print("RPE must be between 1 and 10.\n")
+        except ValueError:
+            print("Enter a valid number (example: 7.5).\n")
+
+
+def ask_rep_range() -> tuple[int, int]:
+    """
+    Gets a valid rep range (min, max).
+    """
+    while True:
+        rep_min = ask_int_min("Rep range MIN (>=1): ", 1)
+        rep_max = ask_int_min("Rep range MAX (>=1): ", 1)
+
+        if rep_max < rep_min:
+            print("You entered MAX < MIN — swapping them.\n")
+            rep_min, rep_max = rep_max, rep_min
+
+        # Sanity limits (avoid typos like 500 reps)
+        if rep_max > 100:
+            print("Rep range max is too large. Try something like 3–20.\n")
+            continue
+
+        return rep_min, rep_max
+
+
+def main() -> None:
     print("\nKinetiq: Next Set Suggestion (RPE-based)")
-    print("Answer the prompts, then you’ll get a recommendation for the next set.\n")
+    print("Logs one set (weight, reps, RPE) and suggests the next set.")
 
-    # 1) Units (lbs now, kg supported)
-    unit = ask_unit()
+    # Units
+    unit = ask_unit(Unit.LB)
     settings = UserSettings(unit=unit)
 
-    # 2) Exercise
-    exercise_name = ask_nonempty("Exercise name (e.g., bench_press): ")
+    # Exercise
+    exercise_name = ask_nonempty("Exercise name (e.g., bench press): ")
 
-    # 3) Rep range
-    rep_min = ask_int("Rep range MIN (e.g., 5): ")
-    rep_max = ask_int("Rep range MAX (e.g., 8): ")
-    if rep_max < rep_min:
-        rep_min, rep_max = rep_max, rep_min  # auto-fix if user swaps them
+    # Rep range
+    rep_min, rep_max = ask_rep_range()
 
-    # Optional: target RPE band (common default 7–9)
-    use_default_rpe = input("Use default target RPE range 7–9? [Y/n]: ").strip().lower()
-    if use_default_rpe in ("n", "no"):
-        rpe_min = ask_float("Target RPE MIN (1–10): ", lo=1.0, hi=10.0)
-        rpe_max = ask_float("Target RPE MAX (1–10): ", lo=1.0, hi=10.0)
-        if rpe_max < rpe_min:
-            rpe_min, rpe_max = rpe_max, rpe_min
-        target_rpe_range = (rpe_min, rpe_max)
-    else:
-        target_rpe_range = (7.0, 9.0)
-
-    exercise = ExerciseConfig(
+    # Create exercise config using presets for increments/max jumps
+    exercise = make_exercise(
         name=exercise_name,
         rep_range=(rep_min, rep_max),
-        target_rpe_range=target_rpe_range,
-        # keep increments via presets if you want; for now defaults come from UserSettings
-        # you can swap to make_exercise(...) if you want preset increments/jumps
+        target_rpe_range=TARGET_RPE_RANGE,
+        settings=settings,
     )
 
     print("\n--- Log your set ---")
-    # 4) Last set performance
-    weight = ask_float(f"Weight used ({unit.value}): ", lo=0.01)
-    reps = ask_int("Reps performed: ")
-    rpe = ask_float("How hard was it? RPE (1–10): ", lo=1.0, hi=10.0)
+    weight = ask_float_min(f"Weight used ({unit.value}): ", 0.01)
+
+    # reps performed must be within a reasonable bound; allow slightly outside rep range
+    # because users might accidentally do 1 more/less — engine will clamp suggestions.
+    reps = ask_int_in_range("Reps performed: ", 1, 100)
+
+    rpe = ask_rpe("How hard was it? RPE (1–10): ")
 
     last_set = SetLog(weight=weight, reps=reps, rpe=rpe)
 
-    # 5) Suggest next set
     suggestion = suggest_next_set(exercise, last_set, settings, debug=False)
 
     print("\nNext set recommendation")
     print(f"Exercise: {exercise_name}")
+    print(f"Working rep range: {rep_min}–{rep_max}")
     print(f"Your set: {weight} {unit.value} x {reps} @ RPE {rpe}")
-    print(f"Action: {suggestion.action}")
     print(f"Next set: {suggestion.next_weight} {suggestion.unit.value} x {suggestion.next_reps}")
-    print(f"Why: {suggestion.explanation}\n")
 
 
 if __name__ == "__main__":

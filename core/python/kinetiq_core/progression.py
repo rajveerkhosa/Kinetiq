@@ -6,42 +6,56 @@ from .units import to_kg
 
 def jump_from_rpe_lb(rpe: float) -> float:
     """
-    Piecewise jump rule (in pounds):
+    Weight jump rule (in pounds) scaled to realistic gym increments.
 
-    RPE 1–3   -> 10 to 5 lb increase
-    RPE 4–7   -> 5 to 2.5 lb increase
-    RPE 7–9   -> 2.5 to 0.5 lb increase
-    RPE 9–10  -> 0.5 to 0 lb increase
+    Output range: 5–15 lb
 
-    Returned value is continuous and can be rounded by the caller.
+    - RPE 1–3  : 15 -> 10
+    - RPE 4–7  : 10 -> 5
+    - RPE 7–10 : 5 (flat)
+
+    NOTE: This function only applies when the engine has decided to "add_weight".
     """
     rpe = max(1.0, min(10.0, rpe))
 
+    # RPE 1 -> 15, RPE 3 -> 10
     if rpe <= 3.0:
-        # 1 -> 10, 3 -> 5
-        # linear: y = 12.5 - 2.5*rpe
-        return 12.5 - 2.5 * rpe
+        # linear slope: (10-15)/(3-1) = -2.5
+        return 17.5 - 2.5 * rpe
 
+    # RPE 4 -> 10, RPE 7 -> 5
     if rpe <= 7.0:
-        # 4 -> 5, 7 -> 2.5
-        # slope = (2.5-5)/(7-4) = -0.833333...
-        return 5.0 + (rpe - 4.0) * (-2.5 / 3.0)
+        # slope: (5-10)/(7-4) = -5/3
+        return 10.0 + (rpe - 4.0) * (-5.0 / 3.0)
 
-    if rpe <= 9.0:
-        # 7 -> 2.5, 9 -> 0.5
-        # slope = (0.5-2.5)/(9-7) = -1
-        return 2.5 + (rpe - 7.0) * (-1.0)
-
-    # 9 -> 0.5, 10 -> 0
-    return max(0.0, 0.5 * (10.0 - rpe))
+    # RPE 7–10 stays at 5
+    return 5.0
 
 
 def jump_from_rpe(rpe: float, unit: Unit) -> float:
     """
     Same rule, returned in the user's unit.
-    If user unit is KG, converts the lb jump to kg.
+    If unit is KG, converts the lb jump to kg.
     """
     jump_lb = jump_from_rpe_lb(rpe)
-    if unit == Unit.KG:
-        return to_kg(jump_lb, Unit.LB)
-    return jump_lb
+    return to_kg(jump_lb, Unit.LB) if unit == Unit.KG else jump_lb
+
+
+def rep_delta_from_rpe(rpe: float) -> int:
+    """
+    Dynamic rep change based on RPE (1–10).
+
+    Returns: +3, +2, +1, 0, or -1 reps.
+    Caller must clamp suggested reps into the working rep range.
+    """
+    rpe = max(1.0, min(10.0, rpe))
+
+    if rpe <= 3.0:
+        return 3
+    if rpe <= 6.0:
+        return 2
+    if rpe <= 8.0:
+        return 1
+    if rpe <= 9.0:
+        return 0
+    return -1
