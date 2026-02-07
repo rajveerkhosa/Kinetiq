@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 
 from .models import ExerciseConfig, SetLog, UserSettings, Suggestion
 from .rpe_rules import suggest_next_set_from_rpe
 
+if TYPE_CHECKING:
+    from .ml import MLState
 
 def suggest_next_set(
     exercise: ExerciseConfig,
