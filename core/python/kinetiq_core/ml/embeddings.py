@@ -13,11 +13,5 @@ class EmbeddingTable:
 
     def get(self, key: str) -> List[float]:
         if key not in self.table:
-            # small random init
             self.table[key] = [(random.random() - 0.5) * 0.1 for _ in range(self.dim)]
         return self.table[key]
-
-    def update(self, key: str, grad: List[float]) -> None:
-        v = self.get(key)
-        for i in range(self.dim):
-            v[i] -= self.lr * grad[i]
