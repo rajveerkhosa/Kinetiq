@@ -46,9 +46,10 @@ def test_in_target_at_cap_manageable_add_weight():
     assert sug.next_reps == 5
     assert sug.next_weight > 185
 
-def test_add_reps_clamped_to_rep_max():
+def test_too_easy_weight_first_resets_reps_to_min():
     settings, cfg = base()
-    last = SetLog(weight=185, reps=7, rpe=2.0)  # delta=+3 would exceed rep_max=8
+    last = SetLog(weight=185, reps=7, rpe=2.0)  # too easy => weight-first
     sug = suggest_next_set_from_rpe(last, cfg, settings)
-    assert sug.action == "add_reps"
-    assert sug.next_reps == 8
+    assert sug.action == "add_weight"
+    assert sug.next_weight > 185
+    assert sug.next_reps == cfg.rep_range[0]  # rep_min

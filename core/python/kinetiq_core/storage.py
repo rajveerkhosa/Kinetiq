@@ -2,40 +2,45 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict
-from typing import Any, Dict
+from pathlib import Path
+from typing import List, Dict, Any
 
-from .models import Unit, UserSettings, ExerciseConfig, SetLog
-
-
-def settings_to_json(settings: UserSettings) -> str:
-    d = asdict(settings)
-    d["unit"] = settings.unit.value
-    return json.dumps(d, indent=2)
+from .models import SetLog
 
 
-def settings_from_json(s: str) -> UserSettings:
-    d: Dict[str, Any] = json.loads(s)
-    d["unit"] = Unit(d["unit"])
-    return UserSettings(**d)
+def default_log_path() -> Path:
+    return Path("data") / "set_logs.json"
 
 
-def setlog_to_json(setlog: SetLog) -> str:
-    return json.dumps(asdict(setlog), indent=2)
+def ensure_parent(path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
 
 
-def setlog_from_json(s: str) -> SetLog:
-    d = json.loads(s)
-    return SetLog(**d)
+def load_logs(path: Path | None = None) -> Dict[str, List[Dict[str, Any]]]:
+    """
+    Returns:
+      {
+        "bench_press": [{"weight":..., "reps":..., "rpe":..., "ts":...}, ...],
+        ...
+      }
+    """
+    path = path or default_log_path()
+    if not path.exists():
+        return {}
+    with path.open("r", encoding="utf-8") as f:
+        return json.load(f)
 
 
-def exercise_to_json(cfg: ExerciseConfig) -> str:
-    d = asdict(cfg)
-    return json.dumps(d, indent=2)
+def append_log(exercise: str, entry: Dict[str, Any], path: Path | None = None) -> None:
+    path = path or default_log_path()
+    ensure_parent(path)
+    data = load_logs(path)
+    data.setdefault(exercise, []).append(entry)
+    with path.open("w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
 
 
-def exercise_from_json(s: str) -> ExerciseConfig:
-    d: Dict[str, Any] = json.loads(s)
-    # tuples may deserialize as lists
-    d["rep_range"] = tuple(d["rep_range"])
-    d["target_rpe_range"] = tuple(d["target_rpe_range"])
-    return ExerciseConfig(**d)
+def setlog_to_entry(log: SetLog, ts: str) -> Dict[str, Any]:
+    d = asdict(log)
+    d["ts"] = ts
+    return d
