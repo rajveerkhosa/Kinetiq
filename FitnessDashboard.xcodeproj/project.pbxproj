@@ -1,0 +1,365 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		2D000001 /* FitnessDashboardApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D000002 /* FitnessDashboardApp.swift */; };
+		2D000003 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D000004 /* ContentView.swift */; };
+		2D000019 /* ProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D000020 /* ProgressView.swift */; };
+		2D000021 /* KinetiqView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D000022 /* KinetiqView.swift */; };
+		2D000023 /* AccountView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D000024 /* AccountView.swift */; };
+		2D000025 /* AccountDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D000026 /* AccountDetailView.swift */; };
+		2D000027 /* WorkoutData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D000028 /* WorkoutData.swift */; };
+		2D000029 /* WorkoutDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D000030 /* WorkoutDetailView.swift */; };
+		2D000031 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D000032 /* LoginView.swift */; };
+		2D000033 /* SignUpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D000034 /* SignUpView.swift */; };
+		2D000035 /* ForgotPasswordView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D000036 /* ForgotPasswordView.swift */; };
+		2D000037 /* ActiveWorkoutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D000038 /* ActiveWorkoutView.swift */; };
+		2D000039 /* WorkoutOverviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D000040 /* WorkoutOverviewView.swift */; };
+		2D000041 /* WorkoutHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D000042 /* WorkoutHistoryView.swift */; };
+		2D000043 /* WorkoutSplitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D000044 /* WorkoutSplitView.swift */; };
+		35065D442F48627A00A69D80 /* ExercisePickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35065D402F48627A00A69D80 /* ExercisePickerView.swift */; };
+		35065D452F48627A00A69D80 /* WorkoutPlanBuilderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35065D432F48627A00A69D80 /* WorkoutPlanBuilderView.swift */; };
+		35065D462F48627A00A69D80 /* UserSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35065D422F48627A00A69D80 /* UserSettings.swift */; };
+		35065D472F48627A00A69D80 /* ExerciseLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35065D3F2F48627A00A69D80 /* ExerciseLibrary.swift */; };
+		35065D482F48627A00A69D80 /* RestTimerSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35065D412F48627A00A69D80 /* RestTimerSettingsView.swift */; };
+		35065D4E2F5156CC00A69D80 /* OnboardingBasicsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35065D492F5156CC00A69D80 /* OnboardingBasicsView.swift */; };
+		35065D4F2F5156CC00A69D80 /* OnboardingStartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35065D4C2F5156CC00A69D80 /* OnboardingStartView.swift */; };
+		35065D502F5156CC00A69D80 /* OnboardingProgramView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35065D4B2F5156CC00A69D80 /* OnboardingProgramView.swift */; };
+		35065D512F5156CC00A69D80 /* UserProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35065D4D2F5156CC00A69D80 /* UserProfile.swift */; };
+		35065D522F5156CC00A69D80 /* OnboardingContainerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35065D4A2F5156CC00A69D80 /* OnboardingContainerView.swift */; };
+		2D000053 /* WorkoutCompletionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D000054 /* WorkoutCompletionView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		2D000002 /* FitnessDashboardApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FitnessDashboardApp.swift; sourceTree = "<group>"; };
+		2D000004 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		2D000005 /* FitnessDashboard.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FitnessDashboard.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		2D000020 /* ProgressView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressView.swift; sourceTree = "<group>"; };
+		2D000022 /* KinetiqView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KinetiqView.swift; sourceTree = "<group>"; };
+		2D000024 /* AccountView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountView.swift; sourceTree = "<group>"; };
+		2D000026 /* AccountDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountDetailView.swift; sourceTree = "<group>"; };
+		2D000028 /* WorkoutData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutData.swift; sourceTree = "<group>"; };
+		2D000030 /* WorkoutDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutDetailView.swift; sourceTree = "<group>"; };
+		2D000032 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
+		2D000034 /* SignUpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignUpView.swift; sourceTree = "<group>"; };
+		2D000036 /* ForgotPasswordView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgotPasswordView.swift; sourceTree = "<group>"; };
+		2D000038 /* ActiveWorkoutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveWorkoutView.swift; sourceTree = "<group>"; };
+		2D000040 /* WorkoutOverviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutOverviewView.swift; sourceTree = "<group>"; };
+		2D000042 /* WorkoutHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutHistoryView.swift; sourceTree = "<group>"; };
+		2D000044 /* WorkoutSplitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutSplitView.swift; sourceTree = "<group>"; };
+		35065D3F2F48627A00A69D80 /* ExerciseLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ExerciseLibrary.swift; path = FitnessDashboard/ExerciseLibrary.swift; sourceTree = "<group>"; };
+		35065D402F48627A00A69D80 /* ExercisePickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ExercisePickerView.swift; path = FitnessDashboard/ExercisePickerView.swift; sourceTree = "<group>"; };
+		35065D412F48627A00A69D80 /* RestTimerSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = RestTimerSettingsView.swift; path = FitnessDashboard/RestTimerSettingsView.swift; sourceTree = "<group>"; };
+		35065D422F48627A00A69D80 /* UserSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UserSettings.swift; path = FitnessDashboard/UserSettings.swift; sourceTree = "<group>"; };
+		35065D432F48627A00A69D80 /* WorkoutPlanBuilderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WorkoutPlanBuilderView.swift; path = FitnessDashboard/WorkoutPlanBuilderView.swift; sourceTree = "<group>"; };
+		35065D492F5156CC00A69D80 /* OnboardingBasicsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OnboardingBasicsView.swift; path = FitnessDashboard/OnboardingBasicsView.swift; sourceTree = "<group>"; };
+		35065D4A2F5156CC00A69D80 /* OnboardingContainerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OnboardingContainerView.swift; path = FitnessDashboard/OnboardingContainerView.swift; sourceTree = "<group>"; };
+		35065D4B2F5156CC00A69D80 /* OnboardingProgramView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OnboardingProgramView.swift; path = FitnessDashboard/OnboardingProgramView.swift; sourceTree = "<group>"; };
+		35065D4C2F5156CC00A69D80 /* OnboardingStartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OnboardingStartView.swift; path = FitnessDashboard/OnboardingStartView.swift; sourceTree = "<group>"; };
+		35065D4D2F5156CC00A69D80 /* UserProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UserProfile.swift; path = FitnessDashboard/UserProfile.swift; sourceTree = "<group>"; };
+		2D000054 /* WorkoutCompletionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutCompletionView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		2D000006 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		2D000007 = {
+			isa = PBXGroup;
+			children = (
+				35065D492F5156CC00A69D80 /* OnboardingBasicsView.swift */,
+				35065D4A2F5156CC00A69D80 /* OnboardingContainerView.swift */,
+				35065D4B2F5156CC00A69D80 /* OnboardingProgramView.swift */,
+				35065D4C2F5156CC00A69D80 /* OnboardingStartView.swift */,
+				35065D4D2F5156CC00A69D80 /* UserProfile.swift */,
+				35065D3F2F48627A00A69D80 /* ExerciseLibrary.swift */,
+				35065D402F48627A00A69D80 /* ExercisePickerView.swift */,
+				35065D412F48627A00A69D80 /* RestTimerSettingsView.swift */,
+				35065D422F48627A00A69D80 /* UserSettings.swift */,
+				35065D432F48627A00A69D80 /* WorkoutPlanBuilderView.swift */,
+				2D000008 /* FitnessDashboard */,
+				2D000009 /* Products */,
+				35065D3E2F4860EE00A69D80 /* Recovered References */,
+			);
+			sourceTree = "<group>";
+		};
+		2D000008 /* FitnessDashboard */ = {
+			isa = PBXGroup;
+			children = (
+				2D000002 /* FitnessDashboardApp.swift */,
+				2D000004 /* ContentView.swift */,
+				2D000032 /* LoginView.swift */,
+				2D000034 /* SignUpView.swift */,
+				2D000036 /* ForgotPasswordView.swift */,
+				2D000020 /* ProgressView.swift */,
+				2D000022 /* KinetiqView.swift */,
+				2D000038 /* ActiveWorkoutView.swift */,
+				2D000054 /* WorkoutCompletionView.swift */,
+				2D000040 /* WorkoutOverviewView.swift */,
+				2D000042 /* WorkoutHistoryView.swift */,
+				2D000044 /* WorkoutSplitView.swift */,
+				2D000024 /* AccountView.swift */,
+				2D000026 /* AccountDetailView.swift */,
+				2D000028 /* WorkoutData.swift */,
+				2D000030 /* WorkoutDetailView.swift */,
+			);
+			path = FitnessDashboard;
+			sourceTree = "<group>";
+		};
+		2D000009 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				2D000005 /* FitnessDashboard.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		35065D3E2F4860EE00A69D80 /* Recovered References */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = "Recovered References";
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		2D00000A /* FitnessDashboard */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2D00000B /* Build configuration list for PBXNativeTarget "FitnessDashboard" */;
+			buildPhases = (
+				2D00000C /* Sources */,
+				2D000006 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = FitnessDashboard;
+			productName = FitnessDashboard;
+			productReference = 2D000005 /* FitnessDashboard.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		2D00000D /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 2620;
+			};
+			buildConfigurationList = 2D00000E /* Build configuration list for PBXProject "FitnessDashboard" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 2D000007;
+			productRefGroup = 2D000009 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				2D00000A /* FitnessDashboard */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		2D00000C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2D000001 /* FitnessDashboardApp.swift in Sources */,
+				2D000003 /* ContentView.swift in Sources */,
+				2D000031 /* LoginView.swift in Sources */,
+				2D000033 /* SignUpView.swift in Sources */,
+				2D000035 /* ForgotPasswordView.swift in Sources */,
+				2D000019 /* ProgressView.swift in Sources */,
+				35065D4E2F5156CC00A69D80 /* OnboardingBasicsView.swift in Sources */,
+				35065D4F2F5156CC00A69D80 /* OnboardingStartView.swift in Sources */,
+				35065D502F5156CC00A69D80 /* OnboardingProgramView.swift in Sources */,
+				35065D512F5156CC00A69D80 /* UserProfile.swift in Sources */,
+				35065D522F5156CC00A69D80 /* OnboardingContainerView.swift in Sources */,
+				2D000021 /* KinetiqView.swift in Sources */,
+				2D000037 /* ActiveWorkoutView.swift in Sources */,
+				2D000053 /* WorkoutCompletionView.swift in Sources */,
+				35065D442F48627A00A69D80 /* ExercisePickerView.swift in Sources */,
+				35065D452F48627A00A69D80 /* WorkoutPlanBuilderView.swift in Sources */,
+				35065D462F48627A00A69D80 /* UserSettings.swift in Sources */,
+				35065D472F48627A00A69D80 /* ExerciseLibrary.swift in Sources */,
+				35065D482F48627A00A69D80 /* RestTimerSettingsView.swift in Sources */,
+				2D000039 /* WorkoutOverviewView.swift in Sources */,
+				2D000041 /* WorkoutHistoryView.swift in Sources */,
+				2D000043 /* WorkoutSplitView.swift in Sources */,
+				2D000023 /* AccountView.swift in Sources */,
+				2D000025 /* AccountDetailView.swift in Sources */,
+				2D000027 /* WorkoutData.swift in Sources */,
+				2D000029 /* WorkoutDetailView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		2D00000F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 7735T87875;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.raj.FitnessDashboard;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		2D000010 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 7735T87875;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.raj.FitnessDashboard;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		2D00000B /* Build configuration list for PBXNativeTarget "FitnessDashboard" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2D00000F /* Debug */,
+				2D000010 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		2D00000E /* Build configuration list for PBXProject "FitnessDashboard" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2D00000F /* Debug */,
+				2D000010 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 2D00000D /* Project object */;
+}

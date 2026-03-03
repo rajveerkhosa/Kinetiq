@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xcodebuild -list)",
+      "Bash(xcrun simctl list devices available)",
+      "Bash(xcrun simctl boot \"9A86622D-910F-4A75-A7A4-BBC081AB42C2\")",
+      "Bash(open -a Simulator)",
+      "Bash(xcodebuild -scheme FitnessDashboard -destination 'platform=iOS Simulator,id=9A86622D-910F-4A75-A7A4-BBC081AB42C2' build)",
+      "Bash(xcrun simctl install \"9A86622D-910F-4A75-A7A4-BBC081AB42C2\" \"/Users/raj/Library/Developer/Xcode/DerivedData/FitnessDashboard-dzughkmtppcywbbjgmwlrmnenwlm/Build/Products/Debug-iphonesimulator/FitnessDashboard.app\")",
+      "Bash(xcodebuild -scheme FitnessDashboard -destination 'platform=iOS Simulator,name=iPhone 16 Pro' clean build)",
+      "Bash(xcodebuild -scheme FitnessDashboard -destination 'platform=iOS Simulator,name=iPhone 16 Pro' build)",
+      "Bash(xcodebuild -scheme FitnessDashboard -sdk iphonesimulator build)",
+      "Bash(xcrun simctl list devices)",
+      "Bash(xcodebuild -scheme FitnessDashboard -sdk iphonesimulator clean build)",
+      "Bash(xcrun simctl install \"043CC37C-C729-498B-BD97-89A617AEABBE\" \"/Users/raj/Library/Developer/Xcode/DerivedData/FitnessDashboard-dzughkmtppcywbbjgmwlrmnenwlm/Build/Products/Debug-iphonesimulator/FitnessDashboard.app\")",
+      "Bash(xcrun simctl launch \"043CC37C-C729-498B-BD97-89A617AEABBE\" com.raj.FitnessDashboard)",
+      "Bash(xcrun simctl boot \"043CC37C-C729-498B-BD97-89A617AEABBE\")",
+      "Read(///**)",
+      "Bash(xcodebuild -scheme FitnessDashboard -destination 'platform=iOS Simulator,id=043CC37C-C729-498B-BD97-89A617AEABBE' build)",
+      "Bash(xcrun simctl listapps \"043CC37C-C729-498B-BD97-89A617AEABBE\")",
+      "Bash(xcrun simctl launch \"9A86622D-910F-4A75-A7A4-BBC081AB42C2\" com.raj.FitnessDashboard)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

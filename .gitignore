@@ -15,3 +15,8 @@ dist/
 
 # VS Code
 .vscode/
+
+# Claude
+.claude/
+.claude.json
+.claude.json.backup
