@@ -38,6 +38,16 @@ class OnlineLinearRegressor:
             self.w[i] -= self.lr * grad
         self.b -= self.lr * err
 
+    def to_dict(self) -> dict:
+        return {"dim": self.dim, "lr": self.lr, "l2": self.l2, "w": self.w, "b": self.b}
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "OnlineLinearRegressor":
+        obj = cls(dim=d["dim"], lr=d["lr"], l2=d["l2"])
+        obj.w = d["w"]
+        obj.b = d["b"]
+        return obj
+
 
 @dataclass
 class OnlineLogisticRegressor:
@@ -59,3 +69,13 @@ class OnlineLogisticRegressor:
             grad = err * x[i] + self.l2 * self.w[i]
             self.w[i] -= self.lr * grad
         self.b -= self.lr * err
+
+    def to_dict(self) -> dict:
+        return {"dim": self.dim, "lr": self.lr, "l2": self.l2, "w": self.w, "b": self.b}
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "OnlineLogisticRegressor":
+        obj = cls(dim=d["dim"], lr=d["lr"], l2=d["l2"])
+        obj.w = d["w"]
+        obj.b = d["b"]
+        return obj

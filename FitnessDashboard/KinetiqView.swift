@@ -98,48 +98,30 @@ struct KinetiqView: View {
     }
 
     func loadWorkoutExercises(for workoutType: String) -> [WorkoutExercise] {
+        let store = WorkoutDataStore.shared
+        let unit = UserSettings.shared.weightUnit.rawValue
+
+        func makeExercise(_ name: String, setCount: Int) -> WorkoutExercise {
+            let lastPerf = store.lastPerformanceString(for: name, unit: unit)
+            let sets = (0..<setCount).map { _ in
+                ExerciseSetInput(weight: "", reps: "", rpe: "", completed: false)
+            }
+            return WorkoutExercise(name: name, sets: sets, lastPerformance: lastPerf)
+        }
+
         if workoutType.contains("Upper") {
             return [
-                WorkoutExercise(name: "Bench Press", sets: [
-                    ExerciseSetInput(weight: "", reps: "", completed: false),
-                    ExerciseSetInput(weight: "", reps: "", completed: false),
-                    ExerciseSetInput(weight: "", reps: "", completed: false)
-                ], lastPerformance: "185 lbs × 8, 7, 6"),
-                WorkoutExercise(name: "Barbell Row", sets: [
-                    ExerciseSetInput(weight: "", reps: "", completed: false),
-                    ExerciseSetInput(weight: "", reps: "", completed: false),
-                    ExerciseSetInput(weight: "", reps: "", completed: false)
-                ], lastPerformance: "165 lbs × 8, 8, 7"),
-                WorkoutExercise(name: "Overhead Press", sets: [
-                    ExerciseSetInput(weight: "", reps: "", completed: false),
-                    ExerciseSetInput(weight: "", reps: "", completed: false),
-                    ExerciseSetInput(weight: "", reps: "", completed: false)
-                ], lastPerformance: "95 lbs × 8, 7, 6"),
-                WorkoutExercise(name: "Dumbbell Curl", sets: [
-                    ExerciseSetInput(weight: "", reps: "", completed: false),
-                    ExerciseSetInput(weight: "", reps: "", completed: false)
-                ], lastPerformance: "30 lbs × 12, 10"),
-                WorkoutExercise(name: "Tricep Pushdown", sets: [
-                    ExerciseSetInput(weight: "", reps: "", completed: false),
-                    ExerciseSetInput(weight: "", reps: "", completed: false)
-                ], lastPerformance: "50 lbs × 12, 12")
+                makeExercise("Bench Press", setCount: 3),
+                makeExercise("Barbell Row", setCount: 3),
+                makeExercise("Overhead Press", setCount: 3),
+                makeExercise("Dumbbell Curl", setCount: 2),
+                makeExercise("Tricep Pushdown", setCount: 2)
             ]
         } else {
             return [
-                WorkoutExercise(name: "Squat", sets: [
-                    ExerciseSetInput(weight: "", reps: "", completed: false),
-                    ExerciseSetInput(weight: "", reps: "", completed: false),
-                    ExerciseSetInput(weight: "", reps: "", completed: false)
-                ], lastPerformance: "225 lbs × 8, 7, 6"),
-                WorkoutExercise(name: "Romanian Deadlift", sets: [
-                    ExerciseSetInput(weight: "", reps: "", completed: false),
-                    ExerciseSetInput(weight: "", reps: "", completed: false),
-                    ExerciseSetInput(weight: "", reps: "", completed: false)
-                ], lastPerformance: "185 lbs × 10, 9, 8"),
-                WorkoutExercise(name: "Leg Press", sets: [
-                    ExerciseSetInput(weight: "", reps: "", completed: false),
-                    ExerciseSetInput(weight: "", reps: "", completed: false)
-                ], lastPerformance: "360 lbs × 12, 10")
+                makeExercise("Squat", setCount: 3),
+                makeExercise("Romanian Deadlift", setCount: 3),
+                makeExercise("Leg Press", setCount: 2)
             ]
         }
     }

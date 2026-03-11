@@ -2,12 +2,18 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Tuple, Literal, Optional, Dict, Any
+from typing import Tuple, Literal, Optional, Dict, Any, List
 
 
 class Unit(str, Enum):
     LB = "lb"
     KG = "kg"
+
+
+class FitnessGoal(str, Enum):
+    STRENGTH = "strength"
+    HYPERTROPHY = "hypertrophy"
+    BOTH = "both"
 
 
 Action = Literal["add_weight", "add_reps", "stay", "lower_weight", "lower_reps"]
@@ -31,6 +37,9 @@ class UserSettings:
     # Safety cap on how much we change weight between sets
     max_jump_lb: float = 10.0
     max_jump_kg: float = 5.0
+
+    # Training goal affects rep ceiling logic
+    goal: FitnessGoal = FitnessGoal.BOTH
 
 
 @dataclass(frozen=True)
@@ -62,6 +71,34 @@ class SetLog:
     rpe: float  # 1–10
 
 
+@dataclass
+class SetLogWithTs:
+    """SetLog with an optional ISO-8601 timestamp string."""
+    weight: float
+    reps: int
+    rpe: float  # 1–10
+    ts: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class PlateauResult:
+    """Result of plateau detection for an exercise."""
+    is_plateau: bool
+    weeks_at_same_weight: int
+    rpe_trend: float           # positive = RPE rising (getting harder)
+    recommendation: str        # "deload" | "vary_reps" | "maintain"
+    explanation: str
+
+
+@dataclass(frozen=True)
+class RPEReliabilityResult:
+    """How much to trust the user's RPE readings for this exercise."""
+    score: float               # 0.0–1.0 (1.0 = very reliable)
+    variance: float            # raw RPE variance
+    n_observations: int
+    weight_in_decisions: float # 0.3–1.0
+
+
 @dataclass(frozen=True)
 class Suggestion:
     action: Action
@@ -70,3 +107,5 @@ class Suggestion:
     unit: Unit
     explanation: str
     debug: Optional[Dict[str, Any]] = None
+    plateau_info: Optional[PlateauResult] = None
+    rpe_reliability: Optional[RPEReliabilityResult] = None

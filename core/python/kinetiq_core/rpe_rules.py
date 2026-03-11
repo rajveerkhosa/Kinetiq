@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from typing import List, Optional, Tuple
 
-from .models import SetLog, ExerciseConfig, UserSettings, Suggestion, Action
+from .models import SetLog, ExerciseConfig, UserSettings, Suggestion, Action, FitnessGoal
+from .presets import adaptation_rate_for_exercise
 from .units import (
     to_kg, from_kg, round_to_increment, clamp_int,
     increment_in_kg, max_jump_in_kg, normalize_display_weight
@@ -26,7 +27,8 @@ def _dynamic_weight_increase_kg(
     rpe: float,
     settings: UserSettings,
     inc_kg: float,
-    max_jump_kg: float
+    max_jump_kg: float,
+    adapt_rate: float = 1.0,
 ) -> float:
     """
     Compute weight increase amount in kg based on RPE,
@@ -34,6 +36,7 @@ def _dynamic_weight_increase_kg(
       - minimum realistic delta (>= 5 lb or >= 2.5 kg)
       - minimum rounding increment
       - max jump cap
+      - adapt_rate scales the jump (faster-adapting exercises get larger jumps)
     """
     min_delta_user = 5.0 if settings.unit.value == "lb" else 2.5
     min_delta_kg = to_kg(min_delta_user, settings.unit)
@@ -42,6 +45,7 @@ def _dynamic_weight_increase_kg(
     change_kg = to_kg(change_user, settings.unit)
 
     change_kg = max(change_kg, min_delta_kg, inc_kg)
+    change_kg *= adapt_rate
     return min(max_jump_kg, change_kg)
 
 
@@ -140,10 +144,16 @@ def suggest_next_set_from_rpe(
     action: Action = "stay"
     reason = ""
 
-    # Jeff-style constants (tunable)
-    # - push reps if <= 8.5 in target
-    # - hold steady when near top of target to avoid overshoot
-    reps_push_ceiling = 8.5
+    # Goal-aware rep ceiling (how aggressively to push reps before adding weight)
+    if settings.goal == FitnessGoal.STRENGTH:
+        reps_push_ceiling = 7.5   # push weight faster
+    elif settings.goal == FitnessGoal.HYPERTROPHY:
+        reps_push_ceiling = 9.0   # stay in rep range longer
+    else:
+        reps_push_ceiling = 8.5   # default (BOTH)
+
+    # Exercise-specific adaptation rate modifies weight jump magnitude
+    adapt_rate = adaptation_rate_for_exercise(cfg.name)
 
     # -----------------------
     # TOO HARD (safety first)
@@ -170,7 +180,7 @@ def suggest_next_set_from_rpe(
             action = "add_reps"
             reason = f"RPE {rpe:.1f} < {rpe_min:.1f}; add reps first (double progression)."
         else:
-            change = _dynamic_weight_increase_kg(rpe, settings, inc_kg, max_jump_kg)
+            change = _dynamic_weight_increase_kg(rpe, settings, inc_kg, max_jump_kg, adapt_rate)
             next_w_kg = w_kg + change
             next_reps = rep_min
             action = "add_weight"
@@ -187,7 +197,7 @@ def suggest_next_set_from_rpe(
         if reps >= rep_max:
             mid = (rpe_min + rpe_max) / 2.0
             if rpe <= mid or drop_ok:
-                change = _dynamic_weight_increase_kg(rpe, settings, inc_kg, max_jump_kg)
+                change = _dynamic_weight_increase_kg(rpe, settings, inc_kg, max_jump_kg, adapt_rate)
                 next_w_kg = w_kg + change
                 next_reps = rep_min
                 action = "add_weight"
@@ -214,7 +224,7 @@ def suggest_next_set_from_rpe(
             # If the RPE-drop trigger says it's easier now, allow load increase even before rep_max
             # (Optional but Jeff-authentic)
             if drop_ok and rpe <= (rpe_max - 0.2):
-                change = _dynamic_weight_increase_kg(rpe, settings, inc_kg, max_jump_kg)
+                change = _dynamic_weight_increase_kg(rpe, settings, inc_kg, max_jump_kg, adapt_rate)
                 next_w_kg = w_kg + change
                 next_reps = rep_min
                 action = "add_weight"

@@ -19,6 +19,11 @@ struct ActiveWorkoutView: View {
     @State private var workoutCompleted = false
     @State private var showExercisePicker = false
     @State private var showCompletionScreen = false
+
+    // ML suggestion state: key = "exerciseIndex_setIndex"
+    @State private var suggestions: [String: KinetiqService.SuggestionResponse] = [:]
+    @State private var isLoadingSuggestion: [String: Bool] = [:]
+
     @ObservedObject var settings = UserSettings.shared
 
     var body: some View {
@@ -125,11 +130,31 @@ struct ActiveWorkoutView: View {
                             // Sets
                             VStack(spacing: 16) {
                                 ForEach(exercises[currentExerciseIndex].sets.indices, id: \.self) { setIndex in
-                                    VStack(spacing: 12) {
+                                    VStack(spacing: 8) {
                                         SetRow(
                                             setNumber: setIndex + 1,
                                             set: $exercises[currentExerciseIndex].sets[setIndex]
                                         )
+                                        .onChange(of: exercises[currentExerciseIndex].sets[setIndex].rpe) { newRpe in
+                                            guard !newRpe.isEmpty else { return }
+                                            fetchSuggestion(exerciseIndex: currentExerciseIndex, setIndex: setIndex)
+                                        }
+
+                                        // ML Suggestion card
+                                        let sugKey = "\(currentExerciseIndex)_\(setIndex)"
+                                        if isLoadingSuggestion[sugKey] == true {
+                                            HStack {
+                                                ProgressView()
+                                                    .tint(.white)
+                                                    .scaleEffect(0.8)
+                                                Text("Getting next set recommendation…")
+                                                    .font(.caption)
+                                                    .foregroundColor(.white.opacity(0.5))
+                                            }
+                                            .padding(.horizontal)
+                                        } else if let suggestion = suggestions[sugKey] {
+                                            SuggestionCard(suggestion: suggestion)
+                                        }
 
                                         // Rest Button only for the latest completed set
                                         if !exercises[currentExerciseIndex].sets[setIndex].weight.isEmpty &&
@@ -218,7 +243,7 @@ struct ActiveWorkoutView: View {
                                 // Add Set Button
                                 Button(action: {
                                     exercises[currentExerciseIndex].sets.append(
-                                        ExerciseSetInput(weight: "", reps: "", completed: false)
+                                        ExerciseSetInput(weight: "", reps: "", rpe: "", completed: false)
                                     )
                                 }) {
                                     HStack {
@@ -498,7 +523,8 @@ struct ActiveWorkoutView: View {
                 return ExerciseSet(
                     weight: weightValue,
                     reps: repsValue,
-                    setNumber: index + 1
+                    setNumber: index + 1,
+                    rpe: Double(set.rpe)   // nil if blank — fine for pre-RPE history
                 )
             }
 
@@ -558,6 +584,73 @@ struct ActiveWorkoutView: View {
         return "Other"
     }
 
+    func loadWorkoutExercises() {
+        let store = WorkoutDataStore.shared
+        let unitStr = settings.weightUnit.rawValue
+
+        func makeExercise(_ name: String, setCount: Int) -> WorkoutExercise {
+            let lastPerf = store.lastPerformanceString(for: name, unit: unitStr)
+            let sets = (0..<setCount).map { _ in
+                ExerciseSetInput(weight: "", reps: "", rpe: "", completed: false)
+            }
+            return WorkoutExercise(name: name, sets: sets, lastPerformance: lastPerf)
+        }
+
+        if workoutType.contains("Upper") {
+            exercises = [
+                makeExercise("Bench Press", setCount: 3),
+                makeExercise("Barbell Row", setCount: 3),
+                makeExercise("Overhead Press", setCount: 3),
+                makeExercise("Dumbbell Curl", setCount: 2),
+                makeExercise("Tricep Pushdown", setCount: 2)
+            ]
+        } else {
+            exercises = [
+                makeExercise("Squat", setCount: 3),
+                makeExercise("Romanian Deadlift", setCount: 3),
+                makeExercise("Leg Press", setCount: 2)
+            ]
+        }
+    }
+
+    // MARK: - ML Suggestion
+
+    func fetchSuggestion(exerciseIndex: Int, setIndex: Int) {
+        guard exerciseIndex < exercises.count,
+              setIndex < exercises[exerciseIndex].sets.count else { return }
+
+        let set = exercises[exerciseIndex].sets[setIndex]
+        guard let weight = Double(set.weight),
+              let reps = Int(set.reps),
+              let rpe = Double(set.rpe),
+              rpe >= 1, rpe <= 10 else { return }
+
+        let exerciseName = exercises[exerciseIndex].name
+        let key = "\(exerciseIndex)_\(setIndex)"
+
+        isLoadingSuggestion[key] = true
+
+        let lastExerciseSet = ExerciseSet(
+            weight: weight,
+            reps: reps,
+            setNumber: setIndex + 1,
+            rpe: rpe
+        )
+        let history = WorkoutDataStore.shared.history(for: exerciseName)
+
+        Task {
+            let response = try? await KinetiqService.shared.suggest(
+                exerciseName: exerciseName,
+                lastSet: lastExerciseSet,
+                history: history
+            )
+            await MainActor.run {
+                suggestions[key] = response
+                isLoadingSuggestion[key] = false
+            }
+        }
+    }
+
     func removeCurrentExercise() {
         guard exercises.count > 1 else { return }
 
@@ -584,55 +677,80 @@ struct ActiveWorkoutView: View {
         let generator = UINotificationFeedbackGenerator()
         generator.notificationOccurred(.warning)
     }
+}
 
-    func loadWorkoutExercises() {
-        // Load exercises based on workout type
-        if workoutType.contains("Upper") {
-            exercises = [
-                WorkoutExercise(name: "Bench Press", sets: [
-                    ExerciseSetInput(weight: "", reps: "", completed: false),
-                    ExerciseSetInput(weight: "", reps: "", completed: false),
-                    ExerciseSetInput(weight: "", reps: "", completed: false)
-                ], lastPerformance: "185 lbs × 8, 7, 6"),
-                WorkoutExercise(name: "Barbell Row", sets: [
-                    ExerciseSetInput(weight: "", reps: "", completed: false),
-                    ExerciseSetInput(weight: "", reps: "", completed: false),
-                    ExerciseSetInput(weight: "", reps: "", completed: false)
-                ], lastPerformance: "165 lbs × 8, 8, 7"),
-                WorkoutExercise(name: "Overhead Press", sets: [
-                    ExerciseSetInput(weight: "", reps: "", completed: false),
-                    ExerciseSetInput(weight: "", reps: "", completed: false),
-                    ExerciseSetInput(weight: "", reps: "", completed: false)
-                ], lastPerformance: "95 lbs × 8, 7, 6"),
-                WorkoutExercise(name: "Dumbbell Curl", sets: [
-                    ExerciseSetInput(weight: "", reps: "", completed: false),
-                    ExerciseSetInput(weight: "", reps: "", completed: false)
-                ], lastPerformance: "30 lbs × 12, 10"),
-                WorkoutExercise(name: "Tricep Pushdown", sets: [
-                    ExerciseSetInput(weight: "", reps: "", completed: false),
-                    ExerciseSetInput(weight: "", reps: "", completed: false)
-                ], lastPerformance: "50 lbs × 12, 12")
-            ]
-        } else {
-            exercises = [
-                WorkoutExercise(name: "Squat", sets: [
-                    ExerciseSetInput(weight: "", reps: "", completed: false),
-                    ExerciseSetInput(weight: "", reps: "", completed: false),
-                    ExerciseSetInput(weight: "", reps: "", completed: false)
-                ], lastPerformance: "225 lbs × 8, 7, 6"),
-                WorkoutExercise(name: "Romanian Deadlift", sets: [
-                    ExerciseSetInput(weight: "", reps: "", completed: false),
-                    ExerciseSetInput(weight: "", reps: "", completed: false),
-                    ExerciseSetInput(weight: "", reps: "", completed: false)
-                ], lastPerformance: "185 lbs × 10, 9, 8"),
-                WorkoutExercise(name: "Leg Press", sets: [
-                    ExerciseSetInput(weight: "", reps: "", completed: false),
-                    ExerciseSetInput(weight: "", reps: "", completed: false)
-                ], lastPerformance: "360 lbs × 12, 10")
-            ]
+// MARK: - SuggestionCard
+
+struct SuggestionCard: View {
+    let suggestion: KinetiqService.SuggestionResponse
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            // Plateau warning (shown only when detected)
+            if let plateau = suggestion.plateauInfo, plateau.isPlateau {
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundColor(.yellow)
+                    Text(plateau.explanation)
+                        .font(.caption)
+                        .foregroundColor(.yellow)
+                }
+                .padding(.bottom, 2)
+            }
+
+            // Main recommendation
+            HStack(spacing: 6) {
+                Image(systemName: actionIcon(suggestion.action))
+                    .font(.caption)
+                    .foregroundColor(.white.opacity(0.7))
+                Text("Next set: \(formattedWeight(suggestion.nextWeight, unit: suggestion.unit)) × \(suggestion.nextReps)")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.white)
+            }
+
+            Text(suggestion.explanation)
+                .font(.caption)
+                .foregroundColor(.white.opacity(0.6))
+
+            // RPE reliability indicator (shown when available and informative)
+            if let reliability = suggestion.rpeReliability, reliability.nObservations >= 5 {
+                HStack(spacing: 4) {
+                    Image(systemName: "waveform.path.ecg")
+                        .font(.caption2)
+                        .foregroundColor(.white.opacity(0.4))
+                    Text("RPE reliability: \(Int(reliability.score * 100))%")
+                        .font(.caption2)
+                        .foregroundColor(.white.opacity(0.4))
+                }
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.white.opacity(0.08))
+        .cornerRadius(10)
+        .padding(.horizontal)
+    }
+
+    private func actionIcon(_ action: String) -> String {
+        switch action {
+        case "add_weight": return "arrow.up.circle"
+        case "add_reps":   return "plus.circle"
+        case "lower_weight", "lower_reps": return "arrow.down.circle"
+        default:           return "arrow.right.circle"
         }
     }
+
+    private func formattedWeight(_ weight: Double, unit: String) -> String {
+        if weight.truncatingRemainder(dividingBy: 1) == 0 {
+            return "\(Int(weight)) \(unit)"
+        }
+        return String(format: "%.1f \(unit)", weight)
+    }
 }
+
+// MARK: - SetRow
 
 struct SetRow: View {
     let setNumber: Int
@@ -641,11 +759,11 @@ struct SetRow: View {
     @ObservedObject var settings = UserSettings.shared
 
     enum Field {
-        case weight, reps
+        case weight, reps, rpe
     }
 
     var body: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 12) {
             // Set Number
             ZStack {
                 Circle()
@@ -691,10 +809,30 @@ struct SetRow: View {
                     .cornerRadius(10)
                     .focused($focusedField, equals: .reps)
             }
+
+            // RPE Input
+            VStack(alignment: .leading, spacing: 6) {
+                Text("RPE")
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.white.opacity(0.5))
+
+                TextField("6-10", text: $set.rpe)
+                    .keyboardType(.decimalPad)
+                    .foregroundColor(.white)
+                    .font(.system(size: 20, weight: .semibold))
+                    .padding(14)
+                    .background(Color.white.opacity(0.1))
+                    .cornerRadius(10)
+                    .frame(width: 72)
+                    .focused($focusedField, equals: .rpe)
+            }
         }
         .padding(.horizontal)
     }
 }
+
+// MARK: - ConfettiView
 
 struct ConfettiView: View {
     @State private var confettiPieces: [ConfettiPiece] = []
@@ -753,6 +891,8 @@ struct ConfettiPiece: Identifiable {
     var opacity: Double = 1.0
 }
 
+// MARK: - WorkoutExercise / ExerciseSetInput
+
 struct WorkoutExercise {
     let name: String
     var sets: [ExerciseSetInput]
@@ -762,6 +902,7 @@ struct WorkoutExercise {
 struct ExerciseSetInput {
     var weight: String
     var reps: String
+    var rpe: String      // RPE 1–10, optional — leave blank if not logging
     var completed: Bool
 }
 

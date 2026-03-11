@@ -221,10 +221,10 @@ struct ExerciseOverviewCard: View {
         workoutType: "Upper Body",
         exercises: [
             WorkoutExercise(name: "Bench Press", sets: [
-                ExerciseSetInput(weight: "", reps: "", completed: false)
+                ExerciseSetInput(weight: "", reps: "", rpe: "", completed: false)
             ], lastPerformance: "185 lbs × 8, 7, 6"),
             WorkoutExercise(name: "Barbell Row", sets: [
-                ExerciseSetInput(weight: "", reps: "", completed: false)
+                ExerciseSetInput(weight: "", reps: "", rpe: "", completed: false)
             ], lastPerformance: "165 lbs × 8, 8, 7")
         ]
     )

@@ -119,7 +119,7 @@ struct ExercisePickerView: View {
     func addExercise(_ exercise: ExerciseLibraryItem) {
         let newExercise = WorkoutExercise(
             name: exercise.name,
-            sets: [ExerciseSetInput(weight: "", reps: "", completed: false)],
+            sets: [ExerciseSetInput(weight: "", reps: "", rpe: "", completed: false)],
             lastPerformance: nil
         )
         selectedExercises.append(newExercise)

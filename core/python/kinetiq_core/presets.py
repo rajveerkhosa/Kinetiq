@@ -71,6 +71,34 @@ def make_exercise(
     )
 
 
+_ISOLATION_KEYWORDS = ("curl", "pushdown", "fly", "flye", "extension", "raise", "kickback", "lateral")
+_UPPER_COMPOUND_KEYWORDS = ("bench", "press", "row", "pull")
+_LOWER_HEAVY_KEYWORDS = ("squat", "deadlift", "dead")
+
+
+def adaptation_rate_for_exercise(exercise_name: str) -> float:
+    """
+    Return a multiplier indicating how quickly this exercise tends to adapt.
+
+    >1.0 = adapts faster (fewer weeks before plateau triggers, larger weight jumps)
+    <1.0 = adapts slower
+
+    Values:
+    - Squat / Deadlift:             1.3  (lower body compounds progress fastest)
+    - Bench / OHP / Row:            0.8  (upper body compounds progress slower)
+    - Isolation (curl, fly, etc.):  0.6  (isolation exercises progress slowest)
+    - Everything else:              1.0
+    """
+    name = exercise_name.lower()
+    if any(k in name for k in _LOWER_HEAVY_KEYWORDS):
+        return 1.3
+    if any(k in name for k in _ISOLATION_KEYWORDS):
+        return 0.6
+    if any(k in name for k in _UPPER_COMPOUND_KEYWORDS):
+        return 0.8
+    return 1.0
+
+
 def common_presets(settings: Optional[UserSettings] = None) -> Dict[str, ExerciseConfig]:
     """
     A starter set of presets (you can expand later).

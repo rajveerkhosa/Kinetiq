@@ -112,7 +112,7 @@ struct WorkoutPlanBuilderView: View {
                                                 Button(action: {
                                                     if selectedExercises[index].sets.count < 10 {
                                                         selectedExercises[index].sets.append(
-                                                            ExerciseSetInput(weight: "", reps: "", completed: false)
+                                                            ExerciseSetInput(weight: "", reps: "", rpe: "", completed: false)
                                                         )
                                                     }
                                                 }) {
