@@ -6,7 +6,7 @@ struct ExercisePickerView: View {
     @State private var selectedMuscleGroup: MuscleGroup? = nil
     @State private var searchText = ""
 
-    let library = ExerciseLibrary.shared
+    @StateObject private var library = ExerciseLibrary.shared
 
     var filteredExercises: [ExerciseLibraryItem] {
         let exercises = selectedMuscleGroup != nil
@@ -113,6 +113,9 @@ struct ExercisePickerView: View {
                     .foregroundColor(.black)
                 }
             }
+        }
+        .task { 
+            await library.fetchExercises()
         }
     }
 
