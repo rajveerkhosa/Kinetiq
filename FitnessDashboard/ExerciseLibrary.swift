@@ -57,22 +57,30 @@ class ExerciseLibrary: ObservableObject {
     @Published var exercises: [ExerciseLibraryItem] = []
 
     func fetchExercises() async {
-        guard let url = URL(string: "http://127.0.0.1:8000/exercises") else { return }
+    guard let url = URL(string: "http://127.0.0.1:8000/exercises") else { return }
 
-        do {
-            let (data, _) = try await URLSession.shared.data(from: url)
-            let apiExercises = try JSONDecoder().decode([APIExercise].self, from: data)
+    do {
+        let (data, _) = try await URLSession.shared.data(from: url)
+        let apiExercises = try JSONDecoder().decode([APIExercise].self, from: data)
 
+        print("Fetched exercises:", apiExercises.count)
+
+        await MainActor.run {
             self.exercises = apiExercises.map { api in
-                ExerciseLibraryItem(
+                let group = MuscleGroup.allCases.first {
+                    $0.rawValue.lowercased() == api.muscle_group.lowercased()
+                } ?? .chest
+
+                return ExerciseLibraryItem(
                     name: api.exercise_name,
-                    muscleGroup: MuscleGroup(rawValue: api.muscle_group.capitalized) ?? .chest,
+                    muscleGroup: group,
                     equipment: "Unknown"
                 )
             }
-
-        } catch {
-            print("Error fetching exercises:", error)
         }
+
+    } catch {
+        print("Error fetching exercises:", error)
     }
+}
 }
