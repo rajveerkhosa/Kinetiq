@@ -1,221 +1,71 @@
 import SwiftUI
-
-struct ExercisePickerView: View {
-    @Environment(\.dismiss) var dismiss
-    @Binding var selectedExercises: [WorkoutExercise]
-    @State private var selectedMuscleGroup: MuscleGroup? = nil
-    @State private var searchText = ""
-
-    let library = ExerciseLibrary.shared
-
-    var filteredExercises: [ExerciseLibraryItem] {
-        let exercises = selectedMuscleGroup != nil
-            ? library.exercisesForMuscleGroup(selectedMuscleGroup!)
-            : library.exercises
-
-        if searchText.isEmpty {
-            return exercises
-        } else {
-            return exercises.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+struct APIExercise: Codable {
+    let exercise_id: Int
+    let exercise_name: String
+    let muscle_group: String
+}
+enum MuscleGroup: String, CaseIterable, Identifiable {
+    case chest = "Chest"
+    case back = "Back"
+    case shoulders = "Shoulders"
+    case biceps = "Biceps"
+    case triceps = "Triceps"
+    case legs = "Legs"
+    case abs = "Abs"
+    case glutes = "Glutes"
+    case forearms = "Forearms"
+    case cardio = "Cardio"
+    var id: String { rawValue }
+    var icon: String {
+        switch self {
+        case .chest: return "figure.strengthtraining.traditional"
+        case .back: return "figure.cooldown"
+        case .shoulders: return "figure.arms.open"
+        case .biceps: return "figure.mind.and.body"
+        case .triceps: return "figure.walk"
+        case .legs: return "figure.run"
+        case .abs: return "figure.core.training"
+        case .glutes: return "figure.stairs"
+        case .forearms: return "hand.raised.fill"
+        case .cardio: return "heart.fill"
         }
-    }
-
-    var body: some View {
-        NavigationView {
-            ZStack {
-                Color(red: 0.95, green: 0.95, blue: 0.97)
-                    .ignoresSafeArea()
-
-                VStack(spacing: 0) {
-                    // Search Bar
-                    HStack {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundColor(.gray)
-
-                        TextField("Search exercises", text: $searchText)
-                            .textFieldStyle(PlainTextFieldStyle())
-
-                        if !searchText.isEmpty {
-                            Button(action: { searchText = "" }) {
-                                Image(systemName: "xmark.circle.fill")
-                                    .foregroundColor(.gray)
-                            }
-                        }
-                    }
-                    .padding()
-                    .background(Color.white)
-                    .cornerRadius(12)
-                    .padding()
-
-                    // Muscle Group Filter
-                    if selectedMuscleGroup == nil {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 12) {
-                                ForEach(MuscleGroup.allCases) { muscleGroup in
-                                    MuscleGroupCard(muscleGroup: muscleGroup) {
-                                        withAnimation {
-                                            selectedMuscleGroup = muscleGroup
-                                        }
-                                    }
-                                }
-                            }
-                            .padding(.horizontal)
-                        }
-                        .padding(.bottom)
-                    } else {
-                        // Back to all muscle groups
-                        HStack {
-                            Button(action: {
-                                withAnimation {
-                                    selectedMuscleGroup = nil
-                                }
-                            }) {
-                                HStack {
-                                    Image(systemName: "chevron.left")
-                                    Text("All Muscle Groups")
-                                }
-                                .foregroundColor(.black)
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
-                            }
-
-                            Spacer()
-
-                            Text(selectedMuscleGroup!.rawValue)
-                                .font(.headline)
-                                .foregroundColor(.black)
-                        }
-                        .padding(.horizontal)
-                        .padding(.bottom)
-                    }
-
-                    // Exercise List
-                    ScrollView {
-                        VStack(spacing: 12) {
-                            ForEach(filteredExercises) { exercise in
-                                ExerciseSelectionCard(exercise: exercise) {
-                                    addExercise(exercise)
-                                }
-                            }
-                        }
-                        .padding(.horizontal)
-                        .padding(.bottom, 20)
-                    }
-                }
-            }
-            .navigationTitle("Add Exercise")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                    .foregroundColor(.black)
-                }
-            }
-        }
-    }
-
-    func addExercise(_ exercise: ExerciseLibraryItem) {
-        let newExercise = WorkoutExercise(
-            name: exercise.name,
-            sets: [ExerciseSetInput(weight: "", reps: "", rpe: "", completed: false)],
-            lastPerformance: nil
-        )
-        selectedExercises.append(newExercise)
-
-        // Haptic feedback
-        let generator = UIImpactFeedbackGenerator(style: .medium)
-        generator.impactOccurred()
-
-        dismiss()
     }
 }
-
-struct MuscleGroupCard: View {
+struct ExerciseLibraryItem: Identifiable, Hashable {
+    let id = UUID()
+    let name: String
     let muscleGroup: MuscleGroup
-    let onSelect: () -> Void
-
-    var body: some View {
-        Button(action: onSelect) {
-            VStack(spacing: 12) {
-                ZStack {
-                    Circle()
-                        .fill(Color.black.opacity(0.1))
-                        .frame(width: 60, height: 60)
-
-                    Image(systemName: muscleGroup.icon)
-                        .font(.title2)
-                        .foregroundColor(.black)
-                }
-
-                Text(muscleGroup.rawValue)
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.black)
-                    .multilineTextAlignment(.center)
-                    .frame(width: 70)
-            }
-            .padding()
-            .background(Color.white)
-            .cornerRadius(16)
-            .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
-        }
+    let equipment: String
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+    static func == (lhs: ExerciseLibraryItem, rhs: ExerciseLibraryItem) -> Bool {
+        lhs.id == rhs.id
     }
 }
-
-struct ExerciseSelectionCard: View {
-    let exercise: ExerciseLibraryItem
-    let onSelect: () -> Void
-
-    var body: some View {
-        Button(action: onSelect) {
-            HStack(spacing: 16) {
-                // Icon
-                ZStack {
-                    Circle()
-                        .fill(Color.black.opacity(0.1))
-                        .frame(width: 50, height: 50)
-
-                    Image(systemName: exercise.muscleGroup.icon)
-                        .font(.title3)
-                        .foregroundColor(.black)
-                }
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(exercise.name)
-                        .font(.headline)
-                        .foregroundColor(.black)
-
-                    HStack {
-                        Text(exercise.muscleGroup.rawValue)
-                            .font(.caption)
-                            .foregroundColor(.gray)
-
-                        Text("•")
-                            .foregroundColor(.gray)
-                            .font(.caption)
-
-                        Text(exercise.equipment)
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                    }
-                }
-
-                Spacer()
-
-                Image(systemName: "plus.circle.fill")
-                    .font(.title2)
-                    .foregroundColor(.black)
+class ExerciseLibrary: ObservableObject {
+    static let shared = ExerciseLibrary()
+    @Published var exercises: [ExerciseLibraryItem] = []
+    func fetchExercises() async {
+    guard let url = URL(string: "http://127.0.0.1:8000/exercises") else { return }
+    do {
+        let (data, _) = try await URLSession.shared.data(from: url)
+        let apiExercises = try JSONDecoder().decode([APIExercise].self, from: data)
+        print("Fetched exercises:", apiExercises.count)
+        await MainActor.run {
+            self.exercises = apiExercises.map { api in
+                let group = MuscleGroup.allCases.first {
+                    $0.rawValue.lowercased() == api.muscle_group.lowercased()
+                } ?? .chest
+                return ExerciseLibraryItem(
+                    name: api.exercise_name,
+                    muscleGroup: group,
+                    equipment: "Unknown"
+                )
             }
-            .padding()
-            .background(Color.white)
-            .cornerRadius(12)
-            .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
         }
+    } catch {
+        print("Error fetching exercises:", error)
     }
 }
-
-#Preview {
-    ExercisePickerView(selectedExercises: .constant([]))
 }
