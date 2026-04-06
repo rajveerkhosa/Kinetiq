@@ -101,7 +101,7 @@ def login(credentials: LoginUser):
     
     return {"message": "Login successful", "user": {k: v for k, v in user.items() if k != "password"}}
 #****************************
-Exercise API route
+#Exercise API route
 #****************************
 
 @app.post("/seed-exercises")
