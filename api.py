@@ -118,7 +118,7 @@ async def seed_exercises():
         for muscle in muscles:
             response = await client.get(
                 f"https://api.api-ninjas.com/v1/exercises?muscle={muscle}&limit=20",
-                headers={"X-Api-Key": API_KEY}
+                headers={"X-Api-Key": NINJA_API_KEY}
             )
             exercises = response.json()
             
