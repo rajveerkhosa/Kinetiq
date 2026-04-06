@@ -1,7 +1,9 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
+from datetime import date
 import psycopg
+import httpx
 import psycopg.rows
 import bcrypt
 import os
@@ -10,7 +12,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL", "").replace("postgres://", "postgresql://", 1)
-
+NINJA_API_KEY = os.getenv("API_KEY")
 app = FastAPI()
 
 app.add_middleware(
@@ -37,7 +39,7 @@ class RegisterUser(BaseModel):
     height_in: int
     weight_lb: float
     experience_level: str
-    journey_started: str  # format: "YYYY-MM-DD"
+    journey_started: date  # format: "YYYY-MM-DD"
 
 class LoginUser(BaseModel):
     email: EmailStr
@@ -98,3 +100,58 @@ def login(credentials: LoginUser):
                 raise HTTPException(status_code=401, detail="Invalid password")
     
     return {"message": "Login successful", "user": {k: v for k, v in user.items() if k != "password"}}
+#****************************
+Exercise API route
+#****************************
+
+@app.post("/seed-exercises")
+async def seed_exercises():
+    muscles = [
+        "abdominals", "abductors", "adductors", "biceps", "calves",
+        "chest", "forearms", "glutes", "hamstrings", "lats",
+        "lower_back", "middle_back", "neck", "quadriceps", "traps", "triceps"
+    ]
+    
+    inserted = 0
+    
+    async with httpx.AsyncClient() as client:
+        for muscle in muscles:
+            response = await client.get(
+                f"https://api.api-ninjas.com/v1/exercises?muscle={muscle}&limit=20",
+                headers={"X-Api-Key": API_KEY}
+            )
+            exercises = response.json()
+            
+            with psycopg.connect(DATABASE_URL) as conn:
+                with conn.cursor() as cur:
+                    for ex in exercises:
+                        cur.execute("""
+                            INSERT INTO exercises (exercise_name, muscle_group, type, difficulty, equipment)
+                            VALUES (%s, %s, %s, %s, %s)
+                            ON CONFLICT (exercise_name) DO NOTHING
+                        """, (
+                            ex.get("name"),
+                            ex.get("muscle"),
+                            ex.get("type"),
+                            ex.get("difficulty"),
+                            ex.get("equipment")
+                        ))
+                        inserted += 1
+                    conn.commit()
+    
+    return {"message": f"Exercises seeded", "total_inserted": inserted}
+
+@app.get("/exercises")
+def get_exercises(muscle: str = None, difficulty: str = None):
+    with psycopg.connect(DATABASE_URL) as conn:
+        with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
+            if muscle and difficulty:
+                cur.execute("SELECT * FROM exercises WHERE muscle_group = %s AND difficulty = %s", (muscle, difficulty))
+            elif muscle:
+                cur.execute("SELECT * FROM exercises WHERE muscle_group = %s", (muscle,))
+            elif difficulty:
+                cur.execute("SELECT * FROM exercises WHERE difficulty = %s", (difficulty,))
+            else:
+                cur.execute("SELECT * FROM exercises")
+            exercises = cur.fetchall()
+    return {"exercises": exercises}
