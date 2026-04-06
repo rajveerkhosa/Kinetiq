@@ -106,40 +106,12 @@ def login(credentials: LoginUser):
 
 @app.post("/seed-exercises")
 async def seed_exercises():
-    muscles = [
-        "abdominals", "abductors", "adductors", "biceps", "calves",
-        "chest", "forearms", "glutes", "hamstrings", "lats",
-        "lower_back", "middle_back", "neck", "quadriceps", "traps", "triceps"
-    ]
-    
-    inserted = 0
-    
     async with httpx.AsyncClient() as client:
-        for muscle in muscles:
-            response = await client.get(
-                f"https://api.api-ninjas.com/v1/exercises?muscle={muscle}&limit=20",
-                headers={"X-Api-Key": NINJA_API_KEY}
-            )
-            exercises = response.json()
-            
-            with psycopg.connect(DATABASE_URL) as conn:
-                with conn.cursor() as cur:
-                    for ex in exercises:
-                        cur.execute("""
-                            INSERT INTO exercises (exercise_name, muscle_group, type, difficulty, equipment)
-                            VALUES (%s, %s, %s, %s, %s)
-                            ON CONFLICT (exercise_name) DO NOTHING
-                        """, (
-                            ex.get("name"),
-                            ex.get("muscle"),
-                            ex.get("type"),
-                            ex.get("difficulty"),
-                            ex.get("equipment")
-                        ))
-                        inserted += 1
-                    conn.commit()
-    
-    return {"message": f"Exercises seeded", "total_inserted": inserted}
+        response = await client.get(
+            "https://api.api-ninjas.com/v1/exercises?muscle=chest&limit=5",
+            headers={"X-Api-Key": NINJA_API_KEY}
+        )
+        return {"status": response.status_code, "response": response.json()}
 
 @app.get("/exercises")
 def get_exercises(muscle: str = None, difficulty: str = None):
