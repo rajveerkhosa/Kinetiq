@@ -166,29 +166,36 @@ struct SignUpView: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     .padding(.horizontal, 30)
+			
+		Button(action: {
+    guard password == confirmPassword else {
+        return // passwords don't match, you can add an error state for this
+    }
 
-                    // Sign Up Button
-                    Button(action: {
-                        // Clear ALL data for new account
-                        workoutData.resetAllData()
-                        settings.weightUnit = .imperial
-                        settings.restTimerDuration = 120
-                        profile.resetPlan()
+    // Save credentials temporarily until onboarding completes
+    UserDefaults.standard.set(email, forKey: "pendingEmail")
+    UserDefaults.standard.set(password, forKey: "pendingPassword")
 
-                        // Clear all UserDefaults completely
-                        if let bundleID = Bundle.main.bundleIdentifier {
-                            UserDefaults.standard.removePersistentDomain(forName: bundleID)
-                        }
+    workoutData.resetAllData()
+    settings.weightUnit = .imperial
+    settings.restTimerDuration = 120
+    profile.resetPlan()
 
-                        // Save user's name
-                        profile.fullName = fullName.isEmpty ? nil : fullName
+    if let bundleID = Bundle.main.bundleIdentifier {
+        UserDefaults.standard.removePersistentDomain(forName: bundleID)
+    }
 
-                        // Simple signup - just set authenticated to true
-                        withAnimation {
-                            isAuthenticated = true
-                            showSignUp = false
-                        }
-                    }) {
+    // Re-save credentials after clearing UserDefaults
+    UserDefaults.standard.set(email, forKey: "pendingEmail")
+    UserDefaults.standard.set(password, forKey: "pendingPassword")
+
+    profile.fullName = fullName.isEmpty ? nil : fullName
+
+    withAnimation {
+        isAuthenticated = true
+        showSignUp = false
+    }
+}) {
                         Text("Create Account")
                             .font(.headline)
                             .foregroundColor(.black)
