@@ -507,55 +507,114 @@ struct ActiveWorkoutView: View {
         }
     }
 
-    func saveWorkoutSession() {
-        // Convert current workout exercises to Exercise objects
-        var completedExercises: [Exercise] = []
+	    
+	func saveWorkoutSession() {
+    var completedExercisesList: [Exercise] = []
 
-        for workoutExercise in exercises {
-            // Filter out sets that have both weight and reps filled
-            let validSets = workoutExercise.sets.enumerated().compactMap { (index, set) -> ExerciseSet? in
-                guard !set.weight.isEmpty, !set.reps.isEmpty,
-                      let weightValue = Double(set.weight),
-                      let repsValue = Int(set.reps) else {
-                    return nil
-                }
-
-                return ExerciseSet(
-                    weight: weightValue,
-                    reps: repsValue,
-                    setNumber: index + 1,
-                    rpe: Double(set.rpe)   // nil if blank — fine for pre-RPE history
-                )
+    for workoutExercise in exercises {
+        let validSets = workoutExercise.sets.enumerated().compactMap { (index, set) -> ExerciseSet? in
+            guard !set.weight.isEmpty, !set.reps.isEmpty,
+                  let weightValue = Double(set.weight),
+                  let repsValue = Int(set.reps) else {
+                return nil
             }
-
-            // Only include exercises that have at least one valid set
-            if !validSets.isEmpty {
-                let exercise = Exercise(
-                    name: workoutExercise.name,
-                    sets: validSets,
-                    muscleGroup: determineMuscleGroup(for: workoutExercise.name)
-                )
-                completedExercises.append(exercise)
-            }
+            return ExerciseSet(
+                weight: weightValue,
+                reps: repsValue,
+                setNumber: index + 1,
+                rpe: Double(set.rpe)
+            )
         }
 
-        // Only save if there are completed exercises
-        guard !completedExercises.isEmpty else { return }
-
-        // Calculate duration in minutes
-        let durationMinutes = Int(elapsedTime / 60)
-
-        // Create workout session
-        let session = WorkoutSession(
-            date: Date(),
-            type: workoutType,
-            exercises: completedExercises,
-            duration: durationMinutes
-        )
-
-        // Save to data store
-        WorkoutDataStore.shared.saveWorkout(session)
+        if !validSets.isEmpty {
+            let exercise = Exercise(
+                name: workoutExercise.name,
+                sets: validSets,
+                muscleGroup: determineMuscleGroup(for: workoutExercise.name)
+            )
+            completedExercisesList.append(exercise)
+        }
     }
+
+    guard !completedExercisesList.isEmpty else { return }
+
+    let durationMinutes = Int(elapsedTime / 60)
+    let session = WorkoutSession(
+        date: Date(),
+        type: workoutType,
+        exercises: completedExercisesList,
+        duration: durationMinutes
+    )
+
+    // Save locally as backup
+    WorkoutDataStore.shared.saveWorkout(session)
+
+    // Save to database
+    let userId = UserDefaults.standard.integer(forKey: "user_id")
+    let planId = UserDefaults.standard.integer(forKey: "active_plan_id")
+
+    guard userId > 0, planId > 0 else {
+        print("No user_id or plan_id found, skipping API save")
+        return
+    }
+
+    let formatter = DateFormatter()
+    formatter.dateFormat = "yyyy-MM-dd"
+    let sessionDate = formatter.string(from: Date())
+
+    Task {
+        do {
+            guard let url = URL(string: "https://kinetiq-dzfm.onrender.com/sessions") else { return }
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+            let sessionBody: [String: Any] = [
+                "user_id": userId,
+                "plan_id": planId,
+                "duration_minutes": durationMinutes,
+                "session_date": sessionDate,
+                "missed": false
+            ]
+            request.httpBody = try JSONSerialization.data(withJSONObject: sessionBody)
+
+            let (data, _) = try await URLSession.shared.data(for: request)
+            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let sessionId = json["session_id"] as? Int else {
+                print("Failed to get session_id from response")
+                return
+            }
+
+            // Save each set
+            for exercise in completedExercisesList {
+                for set in exercise.sets {
+                    guard let setUrl = URL(string: "https://kinetiq-dzfm.onrender.com/sets") else { continue }
+                    var setRequest = URLRequest(url: setUrl)
+                    setRequest.httpMethod = "POST"
+                    setRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+                    let setBody: [String: Any] = [
+                        "session_id": sessionId,
+                        "exercise_name": exercise.name,
+                        "set_number": set.setNumber,
+                        "weight_lb": set.weight,
+                        "reps": set.reps
+                    ]
+                    setRequest.httpBody = try JSONSerialization.data(withJSONObject: setBody)
+                    _ = try await URLSession.shared.data(for: setRequest)
+                }
+            }
+
+            print("Workout saved to database successfully")
+
+        } catch {
+            print("Error saving workout to API:", error)
+        }
+    }
+}
+
+
+
 
     func determineMuscleGroup(for exerciseName: String) -> String {
         // Simple matching based on exercise names

@@ -177,12 +177,67 @@ struct WorkoutPlanBuilderView: View {
         }
     }
 
-    func saveWorkoutPlan() {
-        // TODO: Implement saving to persistent storage
-        // For now just dismiss
-        dismiss()
+
+	func saveWorkoutPlan() {
+    let userId = UserDefaults.standard.integer(forKey: "user_id")
+    guard userId > 0 else {
+        print("No user_id found")
+        return
+    }
+
+    Task {
+        do {
+            // Step 1 - Create the plan
+            guard let planUrl = URL(string: "https://kinetiq-dzfm.onrender.com/plans") else { return }
+            var planRequest = URLRequest(url: planUrl)
+            planRequest.httpMethod = "POST"
+            planRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+            let planBody: [String: Any] = [
+                "user_id": userId,
+                "plan_name": planName
+            ]
+            planRequest.httpBody = try JSONSerialization.data(withJSONObject: planBody)
+
+            let (planData, _) = try await URLSession.shared.data(for: planRequest)
+            guard let planJson = try JSONSerialization.jsonObject(with: planData) as? [String: Any],
+                  let planId = planJson["plan_id"] as? Int else {
+                print("Failed to get plan_id from response")
+                return
+            }
+
+            // Save active plan id locally
+            UserDefaults.standard.set(planId, forKey: "active_plan_id")
+
+            // Step 2 - Add each exercise to the plan
+            for exercise in selectedExercises {
+                guard let exUrl = URL(string: "https://kinetiq-dzfm.onrender.com/plans/exercises") else { continue }
+                var exRequest = URLRequest(url: exUrl)
+                exRequest.httpMethod = "POST"
+                exRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+                let exBody: [String: Any] = [
+                    "plan_id": planId,
+                    "exercise_name": exercise.name,
+                    "target_sets": exercise.sets.count,
+                    "target_reps": 10
+                ]
+                exRequest.httpBody = try JSONSerialization.data(withJSONObject: exBody)
+                _ = try await URLSession.shared.data(for: exRequest)
+            }
+
+            print("Plan saved successfully with plan_id: \(planId)")
+
+            await MainActor.run {
+                dismiss()
+            }
+
+        } catch {
+            print("Error saving plan:", error)
+        }
     }
 }
+
 
 #Preview {
     WorkoutPlanBuilderView()
