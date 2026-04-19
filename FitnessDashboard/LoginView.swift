@@ -96,21 +96,56 @@ struct LoginView: View {
                 .padding(.horizontal, 30)
 
                 // Login Button
-                Button(action: {
-                    // Simple login - just set authenticated to true
+  Button(action: {
+    Task {
+        do {
+            guard let url = URL(string: "https://kinetiq-dzfm.onrender.com/login") else { return }
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+            let body: [String: Any] = ["email": email, "password": password]
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
+                if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let user = json["user"] as? [String: Any],
+                   let userId = user["user_id"] as? Int {
+                    UserDefaults.standard.set(userId, forKey: "user_id")
+                }
+		// Fetch active plan
+                    if let planUrl = URL(string: "https://kinetiq-dzfm.onrender.com/plans/\(userId)/active") {
+                        let (planData, _) = try await URLSession.shared.data(from: planUrl)
+                        if let planJson = try? JSONSerialization.jsonObject(with: planData) as? [String: Any],
+                           let plan = planJson["plan"] as? [String: Any],
+                           let planId = plan["plan_id"] as? Int {
+                            UserDefaults.standard.set(planId, forKey: "active_plan_id")
+                        }
+                    }
+                }
+                await MainActor.run {
                     withAnimation {
                         isAuthenticated = true
                     }
-                }) {
-                    Text("Log In")
-                        .font(.headline)
-                        .foregroundColor(.black)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.white)
-                        .cornerRadius(12)
                 }
-                .padding(.horizontal, 30)
+            }
+        } catch {
+            print("Login error:", error)
+        }
+    }
+}) {
+    Text("Log In")
+        .font(.headline)
+        .foregroundColor(.black)
+        .frame(maxWidth: .infinity)
+        .padding()
+        .background(Color.white)
+        .cornerRadius(12)
+}
+.padding(.horizontal, 30)
+                
 
                 // Divider
                 HStack {

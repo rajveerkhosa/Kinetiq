@@ -600,6 +600,14 @@ struct ActiveWorkoutView: View {
                         "weight_lb": set.weight,
                         "reps": set.reps
                     ]
+
+			if let rpe = set.rpe {
+    		if rpe >= 1 && rpe <= 10 {
+        		setBody["rpe"] = rpe
+    				}
+			}		   
+
+
                     setRequest.httpBody = try JSONSerialization.data(withJSONObject: setBody)
                     _ = try await URLSession.shared.data(for: setRequest)
                 }
@@ -643,34 +651,83 @@ struct ActiveWorkoutView: View {
         return "Other"
     }
 
-    func loadWorkoutExercises() {
-        let store = WorkoutDataStore.shared
-        let unitStr = settings.weightUnit.rawValue
+   
+	func loadWorkoutExercises() {
+    let planId = UserDefaults.standard.integer(forKey: "active_plan_id")
+    let store = WorkoutDataStore.shared
+    let unitStr = settings.weightUnit.rawValue
 
-        func makeExercise(_ name: String, setCount: Int) -> WorkoutExercise {
-            let lastPerf = store.lastPerformanceString(for: name, unit: unitStr)
-            let sets = (0..<setCount).map { _ in
-                ExerciseSetInput(weight: "", reps: "", rpe: "", completed: false)
+    // If no plan is set fall back to hardcoded exercises
+    guard planId > 0 else {
+        loadDefaultExercises()
+        return
+    }
+
+    Task {
+        do {
+            guard let url = URL(string: "https://kinetiq-dzfm.onrender.com/plans/\(planId)/exercises") else { return }
+            let (data, _) = try await URLSession.shared.data(from: url)
+
+            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let exerciseList = json["exercises"] as? [[String: Any]] else {
+                print("Failed to parse exercises")
+                loadDefaultExercises()
+                return
             }
-            return WorkoutExercise(name: name, sets: sets, lastPerformance: lastPerf)
-        }
 
-        if workoutType.contains("Upper") {
-            exercises = [
-                makeExercise("Bench Press", setCount: 3),
-                makeExercise("Barbell Row", setCount: 3),
-                makeExercise("Overhead Press", setCount: 3),
-                makeExercise("Dumbbell Curl", setCount: 2),
-                makeExercise("Tricep Pushdown", setCount: 2)
-            ]
-        } else {
-            exercises = [
-                makeExercise("Squat", setCount: 3),
-                makeExercise("Romanian Deadlift", setCount: 3),
-                makeExercise("Leg Press", setCount: 2)
-            ]
+            await MainActor.run {
+                exercises = exerciseList.compactMap { ex in
+                    guard let name = ex["exercise_name"] as? String,
+                          let targetSets = ex["target_sets"] as? Int else { return nil }
+
+                    let lastPerf = store.lastPerformanceString(for: name, unit: unitStr)
+                    let sets = (0..<targetSets).map { _ in
+                        ExerciseSetInput(weight: "", reps: "", rpe: "", completed: false)
+                    }
+                    return WorkoutExercise(name: name, sets: sets, lastPerformance: lastPerf)
+                }
+            }
+
+        } catch {
+            print("Error loading exercises from plan:", error)
+            await MainActor.run {
+                loadDefaultExercises()
+            }
         }
     }
+}
+
+// Fallback if no plan is set
+func loadDefaultExercises() {
+    let store = WorkoutDataStore.shared
+    let unitStr = settings.weightUnit.rawValue
+
+    func makeExercise(_ name: String, setCount: Int) -> WorkoutExercise {
+        let lastPerf = store.lastPerformanceString(for: name, unit: unitStr)
+        let sets = (0..<setCount).map { _ in
+            ExerciseSetInput(weight: "", reps: "", rpe: "", completed: false)
+        }
+        return WorkoutExercise(name: name, sets: sets, lastPerformance: lastPerf)
+    }
+
+    if workoutType.contains("Upper") {
+        exercises = [
+            makeExercise("Bench Press", setCount: 3),
+            makeExercise("Barbell Row", setCount: 3),
+            makeExercise("Overhead Press", setCount: 3),
+            makeExercise("Dumbbell Curl", setCount: 2),
+            makeExercise("Tricep Pushdown", setCount: 2)
+        ]
+    } else {
+        exercises = [
+            makeExercise("Squat", setCount: 3),
+            makeExercise("Romanian Deadlift", setCount: 3),
+            makeExercise("Leg Press", setCount: 2)
+        ]
+    }
+}
+
+
 
     // MARK: - ML Suggestion
 
