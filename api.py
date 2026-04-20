@@ -31,6 +31,16 @@ class RegisterUser(BaseModel):
     username: str
     email: EmailStr
     password: str
+    first_name: str
+    middle_name: Optional[str] = None
+    last_name: str
+    age: int
+    sex: str
+    height_ft: int
+    height_in: int
+    weight_lb: float
+    experience_level: str
+    journey_started: str
 
 class LoginUser(BaseModel):
     email: EmailStr

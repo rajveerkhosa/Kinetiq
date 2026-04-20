@@ -269,39 +269,41 @@ struct AccountView: View {
             UserDefaults.standard.removePersistentDomain(forName: bundleID)
         }
 
-	func fetchUserData() async {
-    let userId = UserDefaults.standard.integer(forKey: "user_id")
-    guard userId > 0 else { return }
-
-    // Fetch session count
-    guard let url = URL(string: "https://kinetiq-dzfm.onrender.com/sessions/\(userId)") else { return }
-    do {
-        let (data, _) = try await URLSession.shared.data(from: url)
-        if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-           let sessions = json["sessions"] as? [[String: Any]] {
-            await MainActor.run {
-                totalWorkouts = sessions.count
-            }
-        }
-    } catch {
-        print("Error fetching user data:", error)
     }
 
-    // Fetch user profile
-    guard let userUrl = URL(string: "https://kinetiq-dzfm.onrender.com/users/\(userId)") else { return }
-    do {
-        let (userData, _) = try await URLSession.shared.data(from: userUrl)
-        if let userJson = try JSONSerialization.jsonObject(with: userData) as? [String: Any],
-           let firstName = userJson["first_name"] as? String,
-           let lastName = userJson["last_name"] as? String {
-            await MainActor.run {
-                userName = "\(firstName) \(lastName)"
+    func fetchUserData() async {
+        let userId = UserDefaults.standard.integer(forKey: "user_id")
+        guard userId > 0 else { return }
+
+        // Fetch session count
+        guard let url = URL(string: "https://kinetiq-dzfm.onrender.com/sessions/\(userId)") else { return }
+        do {
+            let (data, _) = try await URLSession.shared.data(from: url)
+            if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let sessions = json["sessions"] as? [[String: Any]] {
+                await MainActor.run {
+                    totalWorkouts = sessions.count
+                }
             }
+        } catch {
+            print("Error fetching user data:", error)
         }
-    } catch {
-        print("Error fetching profile:", error)
+
+        // Fetch user profile
+        guard let userUrl = URL(string: "https://kinetiq-dzfm.onrender.com/users/\(userId)") else { return }
+        do {
+            let (userData, _) = try await URLSession.shared.data(from: userUrl)
+            if let userJson = try JSONSerialization.jsonObject(with: userData) as? [String: Any],
+               let firstName = userJson["first_name"] as? String,
+               let lastName = userJson["last_name"] as? String {
+                await MainActor.run {
+                    userName = "\(firstName) \(lastName)"
+                }
+            }
+        } catch {
+            print("Error fetching profile:", error)
+        }
     }
-  }
 }
 
 struct StatRow: View {

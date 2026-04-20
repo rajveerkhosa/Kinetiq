@@ -593,7 +593,7 @@ struct ActiveWorkoutView: View {
                     setRequest.httpMethod = "POST"
                     setRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-                    let setBody: [String: Any] = [
+                    var setBody: [String: Any] = [
                         "session_id": sessionId,
                         "exercise_name": exercise.name,
                         "set_number": set.setNumber,

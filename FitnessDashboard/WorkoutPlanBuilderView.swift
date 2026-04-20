@@ -237,6 +237,7 @@ struct WorkoutPlanBuilderView: View {
         }
     }
 }
+}
 
 
 #Preview {

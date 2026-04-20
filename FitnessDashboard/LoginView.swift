@@ -114,8 +114,7 @@ struct LoginView: View {
                    let user = json["user"] as? [String: Any],
                    let userId = user["user_id"] as? Int {
                     UserDefaults.standard.set(userId, forKey: "user_id")
-                }
-		// Fetch active plan
+                    // Fetch active plan
                     if let planUrl = URL(string: "https://kinetiq-dzfm.onrender.com/plans/\(userId)/active") {
                         let (planData, _) = try await URLSession.shared.data(from: planUrl)
                         if let planJson = try? JSONSerialization.jsonObject(with: planData) as? [String: Any],

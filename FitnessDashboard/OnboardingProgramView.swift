@@ -125,18 +125,17 @@ private func completeOnboarding() {
 
     Task {
         do {
-            guard
-                let sex = profile.sex?.rawValue,
-                let age = profile.age,
-                let heightCm = profile.heightCm,
-                let weightKg = profile.weightKg,
-                let experience = profile.liftingExperience?.rawValue,
-                let fullName = profile.fullName
-            else {
+            guard let fullName = profile.fullName else {
                 errorMessage = "Missing profile information. Please go back and complete all fields."
                 isLoading = false
                 return
             }
+
+            let sex = profile.sex?.rawValue ?? "other"
+            let heightCm = profile.heightCm ?? 170.0
+            let weightKg = profile.weightKg ?? 70.0
+            let experience = profile.liftingExperience?.rawValue ?? "beginner"
+            let age = profile.age ?? 25
 
             // Convert height from cm to ft and inches
             let totalInches = heightCm / 2.54
@@ -217,7 +216,6 @@ private func completeOnboarding() {
 
 
 
-    }
 }
 
 // MARK: - Program Pages

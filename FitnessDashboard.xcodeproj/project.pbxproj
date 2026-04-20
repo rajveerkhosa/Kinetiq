@@ -33,6 +33,7 @@
 		35065D512F5156CC00A69D80 /* UserProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35065D4D2F5156CC00A69D80 /* UserProfile.swift */; };
 		35065D522F5156CC00A69D80 /* OnboardingContainerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35065D4A2F5156CC00A69D80 /* OnboardingContainerView.swift */; };
 		2D000053 /* WorkoutCompletionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D000054 /* WorkoutCompletionView.swift */; };
+		2D000055 /* KinetiqService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D000056 /* KinetiqService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -63,6 +64,7 @@
 		35065D4C2F5156CC00A69D80 /* OnboardingStartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OnboardingStartView.swift; path = FitnessDashboard/OnboardingStartView.swift; sourceTree = "<group>"; };
 		35065D4D2F5156CC00A69D80 /* UserProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UserProfile.swift; path = FitnessDashboard/UserProfile.swift; sourceTree = "<group>"; };
 		2D000054 /* WorkoutCompletionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutCompletionView.swift; sourceTree = "<group>"; };
+		2D000056 /* KinetiqService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KinetiqService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -105,6 +107,7 @@
 				2D000036 /* ForgotPasswordView.swift */,
 				2D000020 /* ProgressView.swift */,
 				2D000022 /* KinetiqView.swift */,
+				2D000056 /* KinetiqService.swift */,
 				2D000038 /* ActiveWorkoutView.swift */,
 				2D000054 /* WorkoutCompletionView.swift */,
 				2D000040 /* WorkoutOverviewView.swift */,
@@ -197,6 +200,7 @@
 				35065D512F5156CC00A69D80 /* UserProfile.swift in Sources */,
 				35065D522F5156CC00A69D80 /* OnboardingContainerView.swift in Sources */,
 				2D000021 /* KinetiqView.swift in Sources */,
+				2D000055 /* KinetiqService.swift in Sources */,
 				2D000037 /* ActiveWorkoutView.swift in Sources */,
 				2D000053 /* WorkoutCompletionView.swift in Sources */,
 				35065D442F48627A00A69D80 /* ExercisePickerView.swift in Sources */,
