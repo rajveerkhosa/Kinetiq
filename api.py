@@ -43,7 +43,7 @@ class RegisterUser(BaseModel):
     journey_started: str
 
 class LoginUser(BaseModel):
-    email: EmailStr
+    identifier: str  # email or username
     password: str
 
 class CreatePlan(BaseModel):
@@ -119,10 +119,10 @@ def register(user: RegisterUser):
 def login(credentials: LoginUser):
     with psycopg.connect(DATABASE_URL) as conn:
         with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
-            cur.execute("SELECT * FROM users WHERE email = %s", (credentials.email,))
+            cur.execute("SELECT * FROM users WHERE email = %s OR username = %s", (credentials.identifier, credentials.identifier))
             user = cur.fetchone()
             if not user:
-                raise HTTPException(status_code=404, detail="User not found")
+                raise HTTPException(status_code=404, detail="No account found with that email or username")
             if not bcrypt.checkpw(credentials.password.encode("utf-8"), user["password"].encode("utf-8")):
                 raise HTTPException(status_code=401, detail="Invalid password")
     

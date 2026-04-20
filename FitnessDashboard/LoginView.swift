@@ -2,199 +2,131 @@ import SwiftUI
 
 struct LoginView: View {
     @Binding var isAuthenticated: Bool
-    @State private var email = ""
+    @State private var identifier = ""
     @State private var password = ""
     @State private var showSignUp = false
     @State private var showForgotPassword = false
+    @State private var loginError: String? = nil
+    @State private var isLoading = false
 
     var body: some View {
         ZStack {
-            Color.black
-                .ignoresSafeArea()
+            Color.black.ignoresSafeArea()
 
-            VStack(spacing: 25) {
-                Spacer()
+            ScrollView {
+                VStack(spacing: 24) {
+                    Spacer().frame(height: 40)
 
-                // Logo/Icon
-                Image(systemName: "figure.strengthtraining.traditional")
-                    .font(.system(size: 70))
-                    .foregroundColor(.white)
-
-                // Title
-                VStack(spacing: 6) {
-                    Text("Welcome Back")
-                        .font(.system(size: 32, weight: .bold))
+                    // Logo
+                    Image(systemName: "figure.strengthtraining.traditional")
+                        .font(.system(size: 64))
                         .foregroundColor(.white)
 
-                    Text("Log in to continue your fitness journey")
-                        .font(.subheadline)
-                        .foregroundColor(.white.opacity(0.7))
-                }
-                .padding(.bottom, 10)
-
-                // Email Field
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Email")
-                        .font(.caption)
-                        .foregroundColor(.white.opacity(0.7))
-
-                    HStack {
-                        Image(systemName: "envelope.fill")
-                            .foregroundColor(.white.opacity(0.5))
-                            .font(.system(size: 16))
-
-                        TextField("", text: $email)
+                    // Title
+                    VStack(spacing: 6) {
+                        Text("Welcome Back")
+                            .font(.system(size: 30, weight: .bold))
                             .foregroundColor(.white)
-                            .autocapitalization(.none)
-                            .keyboardType(.emailAddress)
-                            .placeholder(when: email.isEmpty) {
-                                Text("Enter your email")
-                                    .foregroundColor(.white.opacity(0.5))
-                            }
-                    }
-                    .padding()
-                    .background(Color.white.opacity(0.1))
-                    .cornerRadius(12)
-                }
-                .padding(.horizontal, 30)
-
-                // Password Field
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Password")
-                        .font(.caption)
-                        .foregroundColor(.white.opacity(0.7))
-
-                    HStack {
-                        Image(systemName: "lock.fill")
-                            .foregroundColor(.white.opacity(0.5))
-                            .font(.system(size: 16))
-
-                        SecureField("", text: $password)
-                            .foregroundColor(.white)
-                            .placeholder(when: password.isEmpty) {
-                                Text("Enter your password")
-                                    .foregroundColor(.white.opacity(0.5))
-                            }
-                    }
-                    .padding()
-                    .background(Color.white.opacity(0.1))
-                    .cornerRadius(12)
-                }
-                .padding(.horizontal, 30)
-
-                // Forgot Password
-                HStack {
-                    Spacer()
-                    Button(action: {
-                        showForgotPassword = true
-                    }) {
-                        Text("Forgot Password?")
+                        Text("Log in to continue your fitness journey")
                             .font(.subheadline)
-                            .foregroundColor(.white.opacity(0.7))
+                            .foregroundColor(.white.opacity(0.6))
                     }
-                }
-                .padding(.horizontal, 30)
+                    .padding(.bottom, 8)
 
-                // Login Button
-  Button(action: {
-    Task {
-        do {
-            guard let url = URL(string: "https://kinetiq-dzfm.onrender.com/login") else { return }
-            var request = URLRequest(url: url)
-            request.httpMethod = "POST"
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                    // Fields
+                    VStack(spacing: 14) {
+                        inputField(icon: "person.fill", placeholder: "Email or Username") {
+                            TextField("", text: $identifier)
+                                .foregroundColor(.white)
+                                .autocapitalization(.none)
+                                .keyboardType(.emailAddress)
+                                .placeholder(when: identifier.isEmpty) {
+                                    Text("Email or Username").foregroundColor(.white.opacity(0.4))
+                                }
+                        }
 
-            let body: [String: Any] = ["email": email, "password": password]
-            request.httpBody = try JSONSerialization.data(withJSONObject: body)
-
-            let (data, response) = try await URLSession.shared.data(for: request)
-
-            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
-                if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let user = json["user"] as? [String: Any],
-                   let userId = user["user_id"] as? Int {
-                    UserDefaults.standard.set(userId, forKey: "user_id")
-                    // Fetch active plan
-                    if let planUrl = URL(string: "https://kinetiq-dzfm.onrender.com/plans/\(userId)/active") {
-                        let (planData, _) = try await URLSession.shared.data(from: planUrl)
-                        if let planJson = try? JSONSerialization.jsonObject(with: planData) as? [String: Any],
-                           let plan = planJson["plan"] as? [String: Any],
-                           let planId = plan["plan_id"] as? Int {
-                            UserDefaults.standard.set(planId, forKey: "active_plan_id")
+                        inputField(icon: "lock.fill", placeholder: "Password") {
+                            SecureField("", text: $password)
+                                .foregroundColor(.white)
+                                .placeholder(when: password.isEmpty) {
+                                    Text("Password").foregroundColor(.white.opacity(0.4))
+                                }
                         }
                     }
-                }
-                await MainActor.run {
-                    withAnimation {
-                        isAuthenticated = true
+                    .padding(.horizontal, 24)
+
+                    // Forgot password
+                    HStack {
+                        Spacer()
+                        Button("Forgot Password?") { showForgotPassword = true }
+                            .font(.footnote)
+                            .foregroundColor(.white.opacity(0.6))
                     }
-                }
-            }
-        } catch {
-            print("Login error:", error)
-        }
-    }
-}) {
-    Text("Log In")
-        .font(.headline)
-        .foregroundColor(.black)
-        .frame(maxWidth: .infinity)
-        .padding()
-        .background(Color.white)
-        .cornerRadius(12)
-}
-.padding(.horizontal, 30)
-                
+                    .padding(.horizontal, 24)
 
-                // Divider
-                HStack {
-                    Rectangle()
-                        .fill(Color.white.opacity(0.3))
-                        .frame(height: 1)
+                    // Error banner
+                    if let error = loginError {
+                        HStack(spacing: 8) {
+                            Image(systemName: "exclamationmark.circle.fill")
+                                .foregroundColor(.red)
+                            Text(error)
+                                .font(.footnote)
+                                .foregroundColor(.red.opacity(0.9))
+                            Spacer()
+                        }
+                        .padding(12)
+                        .background(Color.red.opacity(0.12))
+                        .cornerRadius(10)
+                        .padding(.horizontal, 24)
+                    }
 
-                    Text("OR")
-                        .font(.caption)
-                        .foregroundColor(.white.opacity(0.5))
-                        .padding(.horizontal, 8)
+                    // Log In button
+                    Button(action: handleLogin) {
+                        HStack(spacing: 8) {
+                            if isLoading {
+                                ProgressView().tint(.black).scaleEffect(0.85)
+                            }
+                            Text(isLoading ? "Logging in..." : "Log In")
+                                .font(.headline)
+                                .foregroundColor(.black)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(Color.white)
+                        .cornerRadius(14)
+                    }
+                    .disabled(isLoading)
+                    .padding(.horizontal, 24)
 
-                    Rectangle()
-                        .fill(Color.white.opacity(0.3))
-                        .frame(height: 1)
-                }
-                .padding(.horizontal, 30)
+                    // Divider
+                    HStack {
+                        Rectangle().fill(Color.white.opacity(0.15)).frame(height: 1)
+                        Text("OR").font(.caption).foregroundColor(.white.opacity(0.4)).padding(.horizontal, 10)
+                        Rectangle().fill(Color.white.opacity(0.15)).frame(height: 1)
+                    }
+                    .padding(.horizontal, 24)
 
-                // Social Login Buttons
-                VStack(spacing: 10) {
-                    SocialLoginButton(
-                        icon: "apple.logo",
-                        title: "Continue with Apple",
-                        backgroundColor: .white.opacity(0.1)
-                    )
+                    // Social buttons (disabled until credentials set up)
+                    VStack(spacing: 10) {
+                        SocialLoginButton(icon: "apple.logo", title: "Continue with Apple", backgroundColor: .white.opacity(0.08))
+                        SocialLoginButton(icon: "g.circle.fill", title: "Continue with Google", backgroundColor: .white.opacity(0.08))
+                    }
+                    .padding(.horizontal, 24)
+                    .opacity(0.5)
+                    .disabled(true)
 
-                    SocialLoginButton(
-                        icon: "g.circle.fill",
-                        title: "Continue with Google",
-                        backgroundColor: .white.opacity(0.1)
-                    )
-                }
-                .padding(.horizontal, 30)
-
-                // Sign Up Link
-                HStack {
-                    Text("Don't have an account?")
-                        .foregroundColor(.white.opacity(0.7))
-
-                    Button(action: {
-                        showSignUp = true
-                    }) {
-                        Text("Sign Up")
+                    // Sign up link
+                    HStack(spacing: 4) {
+                        Text("Don't have an account?")
+                            .foregroundColor(.white.opacity(0.6))
+                        Button("Sign Up") { showSignUp = true }
                             .fontWeight(.semibold)
                             .foregroundColor(.white)
                     }
-                }
-                .font(.subheadline)
+                    .font(.subheadline)
 
-                Spacer()
+                    Spacer().frame(height: 30)
+                }
             }
         }
         .sheet(isPresented: $showSignUp) {
@@ -202,6 +134,68 @@ struct LoginView: View {
         }
         .sheet(isPresented: $showForgotPassword) {
             ForgotPasswordView(showForgotPassword: $showForgotPassword, showSignUp: $showSignUp)
+        }
+    }
+
+    @ViewBuilder
+    private func inputField<F: View>(icon: String, placeholder: String, @ViewBuilder field: () -> F) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .foregroundColor(.white.opacity(0.4))
+                .frame(width: 18)
+            field()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .background(Color.white.opacity(0.08))
+        .cornerRadius(12)
+    }
+
+    private func handleLogin() {
+        loginError = nil
+        isLoading = true
+        Task {
+            do {
+                guard let url = URL(string: "https://kinetiq-dzfm.onrender.com/login") else { return }
+                var request = URLRequest(url: url)
+                request.httpMethod = "POST"
+                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                request.httpBody = try JSONSerialization.data(withJSONObject: ["identifier": identifier, "password": password])
+
+                let (data, response) = try await URLSession.shared.data(for: request)
+                let status = (response as? HTTPURLResponse)?.statusCode
+
+                await MainActor.run { isLoading = false }
+
+                if status == 200 {
+                    if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                       let user = json["user"] as? [String: Any],
+                       let userId = user["user_id"] as? Int {
+                        UserDefaults.standard.set(userId, forKey: "user_id")
+                        if let planUrl = URL(string: "https://kinetiq-dzfm.onrender.com/plans/\(userId)/active") {
+                            let (planData, _) = try await URLSession.shared.data(from: planUrl)
+                            if let planJson = try? JSONSerialization.jsonObject(with: planData) as? [String: Any],
+                               let plan = planJson["plan"] as? [String: Any],
+                               let planId = plan["plan_id"] as? Int {
+                                UserDefaults.standard.set(planId, forKey: "active_plan_id")
+                            }
+                        }
+                    }
+                    await MainActor.run {
+                        withAnimation { isAuthenticated = true }
+                    }
+                } else {
+                    let detail = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["detail"] as? String
+                    await MainActor.run {
+                        loginError = detail ?? "Incorrect email or password."
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    isLoading = false
+                    loginError = "Something went wrong. Check your connection."
+                }
+            }
         }
     }
 }
@@ -214,29 +208,23 @@ struct SocialLoginButton: View {
     var body: some View {
         Button(action: {}) {
             HStack {
-                Image(systemName: icon)
-                    .font(.system(size: 18))
-
-                Text(title)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
+                Image(systemName: icon).font(.system(size: 18))
+                Text(title).font(.subheadline).fontWeight(.semibold)
             }
             .foregroundColor(.white)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 12)
+            .padding(.vertical, 14)
             .background(backgroundColor)
             .cornerRadius(12)
         }
     }
 }
 
-// Helper extension for placeholder
 extension View {
     func placeholder<Content: View>(
         when shouldShow: Bool,
         alignment: Alignment = .leading,
         @ViewBuilder placeholder: () -> Content) -> some View {
-
         ZStack(alignment: alignment) {
             placeholder().opacity(shouldShow ? 1 : 0)
             self
