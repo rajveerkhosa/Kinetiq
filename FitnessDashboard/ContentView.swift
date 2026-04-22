@@ -26,12 +26,26 @@ struct ContentView: View {
                     }
                     .tag(1)
 
+                NutritionLogView()
+                    .tabItem {
+                        Image(systemName: "fork.knife")
+                        Text("Nutrition")
+                    }
+                    .tag(2)
+
+                StrengthView()
+                    .tabItem {
+                        Image(systemName: "dumbbell.fill")
+                        Text("Strength")
+                    }
+                    .tag(3)
+
                 AccountView()
                     .tabItem {
                         Image(systemName: "person.fill")
                         Text("Account")
                     }
-                    .tag(2)
+                    .tag(4)
             }
             .accentColor(.black)
         }

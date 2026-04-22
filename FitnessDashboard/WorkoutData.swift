@@ -181,6 +181,30 @@ class WorkoutDataStore: ObservableObject {
             .flatMap { $0.sets }
     }
 
+    /// Best estimated 1RM for an exercise using Epley formula (sets with 1–12 reps only).
+    func e1rm(for exerciseName: String) -> Double? {
+        let estimates = history(for: exerciseName)
+            .filter { $0.reps > 0 && $0.reps <= 12 && $0.weight > 0 }
+            .map { $0.weight * (1 + Double($0.reps) / 30.0) }
+        return estimates.max()
+    }
+
+    /// E1RM per workout session (for trend chart), sorted oldest → newest.
+    func e1rmTrend(for exerciseName: String) -> [(date: Date, e1rm: Double)] {
+        var result: [(date: Date, e1rm: Double)] = []
+        for session in recentWorkouts {
+            let sets = session.exercises
+                .filter { $0.name.lowercased() == exerciseName.lowercased() }
+                .flatMap { $0.sets }
+                .filter { $0.reps > 0 && $0.reps <= 12 && $0.weight > 0 }
+            let estimates = sets.map { $0.weight * (1 + Double($0.reps) / 30.0) }
+            if let best = estimates.max() {
+                result.append((date: session.date, e1rm: best))
+            }
+        }
+        return result.sorted { $0.date < $1.date }
+    }
+
     /// Human-readable summary of the last performance for an exercise.
     /// Returns a string like "185 lbs × 8, 7, 6" or nil if no history.
     func lastPerformanceString(for exerciseName: String, unit: String = "lbs") -> String? {

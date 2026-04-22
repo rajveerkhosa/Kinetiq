@@ -23,6 +23,10 @@
 		2D000041 /* WorkoutHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D000042 /* WorkoutHistoryView.swift */; };
 		2D000043 /* WorkoutSplitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D000044 /* WorkoutSplitView.swift */; };
 		35065D442F48627A00A69D80 /* ExercisePickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35065D402F48627A00A69D80 /* ExercisePickerView.swift */; };
+		AA000001000000000000AA11 /* NutritionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000AA01 /* NutritionStore.swift */; };
+		AA000001000000000000AA12 /* NutritionLogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000AA02 /* NutritionLogView.swift */; };
+		ED4C6A5F17304BA1B24C22CC /* StrengthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A576F3E89110460DBDB421D7 /* StrengthView.swift */; };
+		AA000001000000000000AA13 /* FoodSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000AA03 /* FoodSearchView.swift */; };
 		35065D452F48627A00A69D80 /* WorkoutPlanBuilderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35065D432F48627A00A69D80 /* WorkoutPlanBuilderView.swift */; };
 		35065D462F48627A00A69D80 /* UserSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35065D422F48627A00A69D80 /* UserSettings.swift */; };
 		35065D472F48627A00A69D80 /* ExerciseLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35065D3F2F48627A00A69D80 /* ExerciseLibrary.swift */; };
@@ -55,6 +59,10 @@
 		2D000044 /* WorkoutSplitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutSplitView.swift; sourceTree = "<group>"; };
 		35065D3F2F48627A00A69D80 /* ExerciseLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ExerciseLibrary.swift; path = FitnessDashboard/ExerciseLibrary.swift; sourceTree = "<group>"; };
 		35065D402F48627A00A69D80 /* ExercisePickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ExercisePickerView.swift; path = FitnessDashboard/ExercisePickerView.swift; sourceTree = "<group>"; };
+		AA000001000000000000AA01 /* NutritionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NutritionStore.swift; path = FitnessDashboard/NutritionStore.swift; sourceTree = "<group>"; };
+		AA000001000000000000AA02 /* NutritionLogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NutritionLogView.swift; path = FitnessDashboard/NutritionLogView.swift; sourceTree = "<group>"; };
+		A576F3E89110460DBDB421D7 /* StrengthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StrengthView.swift; path = FitnessDashboard/StrengthView.swift; sourceTree = "<group>"; };
+		AA000001000000000000AA03 /* FoodSearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FoodSearchView.swift; path = FitnessDashboard/FoodSearchView.swift; sourceTree = "<group>"; };
 		35065D412F48627A00A69D80 /* RestTimerSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = RestTimerSettingsView.swift; path = FitnessDashboard/RestTimerSettingsView.swift; sourceTree = "<group>"; };
 		35065D422F48627A00A69D80 /* UserSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UserSettings.swift; path = FitnessDashboard/UserSettings.swift; sourceTree = "<group>"; };
 		35065D432F48627A00A69D80 /* WorkoutPlanBuilderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WorkoutPlanBuilderView.swift; path = FitnessDashboard/WorkoutPlanBuilderView.swift; sourceTree = "<group>"; };
@@ -88,6 +96,10 @@
 				35065D4D2F5156CC00A69D80 /* UserProfile.swift */,
 				35065D3F2F48627A00A69D80 /* ExerciseLibrary.swift */,
 				35065D402F48627A00A69D80 /* ExercisePickerView.swift */,
+				AA000001000000000000AA01 /* NutritionStore.swift */,
+				AA000001000000000000AA02 /* NutritionLogView.swift */,
+				A576F3E89110460DBDB421D7 /* StrengthView.swift */,
+				AA000001000000000000AA03 /* FoodSearchView.swift */,
 				35065D412F48627A00A69D80 /* RestTimerSettingsView.swift */,
 				35065D422F48627A00A69D80 /* UserSettings.swift */,
 				35065D432F48627A00A69D80 /* WorkoutPlanBuilderView.swift */,
@@ -204,6 +216,10 @@
 				2D000037 /* ActiveWorkoutView.swift in Sources */,
 				2D000053 /* WorkoutCompletionView.swift in Sources */,
 				35065D442F48627A00A69D80 /* ExercisePickerView.swift in Sources */,
+				AA000001000000000000AA11 /* NutritionStore.swift in Sources */,
+				AA000001000000000000AA12 /* NutritionLogView.swift in Sources */,
+				ED4C6A5F17304BA1B24C22CC /* StrengthView.swift in Sources */,
+				AA000001000000000000AA13 /* FoodSearchView.swift in Sources */,
 				35065D452F48627A00A69D80 /* WorkoutPlanBuilderView.swift in Sources */,
 				35065D462F48627A00A69D80 /* UserSettings.swift in Sources */,
 				35065D472F48627A00A69D80 /* ExerciseLibrary.swift in Sources */,
