@@ -341,3 +341,93 @@ def get_sets(session_id: int):
     return {"sets": sets}
 
 
+# *************************
+# Nutrition Routes
+# *************************
+
+class LogNutrition(BaseModel):
+    user_id: int
+    log_date: str  # "YYYY-MM-DD"
+    calories: float
+    protein_g: float
+    carbs_g: float
+    fats_g: float
+    notes: Optional[str] = None
+
+class LogFoodEntry(BaseModel):
+    user_id: int
+    log_date: str
+    food_name: str
+    brand: Optional[str] = ""
+    calories: float
+    protein_g: float
+    carbs_g: float
+    fats_g: float
+    serving_size: Optional[str] = "1 serving"
+    quantity: float = 1.0
+
+@app.post("/nutrition/log")
+def upsert_nutrition_log(data: LogNutrition):
+    with psycopg.connect(DATABASE_URL) as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO nutrition_logs (user_id, log_date, calories, protein_g, carbs_g, fats_g, notes)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (user_id, log_date) DO UPDATE SET
+                    calories = EXCLUDED.calories,
+                    protein_g = EXCLUDED.protein_g,
+                    carbs_g = EXCLUDED.carbs_g,
+                    fats_g = EXCLUDED.fats_g,
+                    notes = EXCLUDED.notes
+            """, (data.user_id, data.log_date, data.calories, data.protein_g,
+                  data.carbs_g, data.fats_g, data.notes))
+            conn.commit()
+    return {"message": "Nutrition log saved"}
+
+@app.get("/nutrition/{user_id}")
+def get_nutrition_logs(user_id: int):
+    with psycopg.connect(DATABASE_URL) as conn:
+        with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
+            cur.execute("""
+                SELECT * FROM nutrition_logs WHERE user_id = %s ORDER BY log_date DESC
+            """, (user_id,))
+            logs = cur.fetchall()
+    return {"logs": logs}
+
+@app.post("/nutrition/entries")
+def log_food_entry(data: LogFoodEntry):
+    with psycopg.connect(DATABASE_URL) as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO nutrition_entries
+                    (user_id, log_date, food_name, brand, calories, protein_g, carbs_g, fats_g, serving_size, quantity)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING entry_id
+            """, (data.user_id, data.log_date, data.food_name, data.brand,
+                  data.calories, data.protein_g, data.carbs_g, data.fats_g,
+                  data.serving_size, data.quantity))
+            entry_id = cur.fetchone()[0]
+            conn.commit()
+    return {"entry_id": entry_id}
+
+@app.get("/nutrition/entries/{user_id}/{log_date}")
+def get_food_entries(user_id: int, log_date: str):
+    with psycopg.connect(DATABASE_URL) as conn:
+        with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
+            cur.execute("""
+                SELECT * FROM nutrition_entries
+                WHERE user_id = %s AND log_date = %s
+                ORDER BY logged_at
+            """, (user_id, log_date))
+            entries = cur.fetchall()
+    return {"entries": entries}
+
+@app.delete("/nutrition/entries/{entry_id}")
+def delete_food_entry(entry_id: int):
+    with psycopg.connect(DATABASE_URL) as conn:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM nutrition_entries WHERE entry_id = %s", (entry_id,))
+            conn.commit()
+    return {"message": "Entry deleted"}
+
+

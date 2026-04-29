@@ -871,80 +871,98 @@ struct SuggestionCard: View {
 struct SetRow: View {
     let setNumber: Int
     @Binding var set: ExerciseSetInput
-    @FocusState private var focusedField: Field?
     @ObservedObject var settings = UserSettings.shared
 
-    enum Field {
-        case weight, reps, rpe
-    }
-
     var body: some View {
-        HStack(spacing: 12) {
-            // Set Number
-            ZStack {
-                Circle()
-                    .fill(Color.white.opacity(0.1))
-                    .frame(width: 44, height: 44)
+        VStack(spacing: 10) {
+            // Row 1: Set badge + Weight
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle().fill(Color.white.opacity(0.1)).frame(width: 38, height: 38)
+                    Text("\(setNumber)").font(.headline).fontWeight(.bold).foregroundColor(.white)
+                }
 
-                Text("\(setNumber)")
-                    .font(.headline)
-                    .fontWeight(.bold)
-                    .foregroundColor(.white)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("WEIGHT (\(settings.weightUnit.rawValue))")
+                        .font(.caption2).fontWeight(.semibold).foregroundColor(.white.opacity(0.5))
+                    TextField("0", text: $set.weight)
+                        .keyboardType(.decimalPad)
+                        .foregroundColor(.white)
+                        .font(.system(size: 22, weight: .semibold))
+                        .padding(12)
+                        .background(Color.white.opacity(0.1))
+                        .cornerRadius(10)
+                }
+                .frame(maxWidth: .infinity)
             }
 
-            // Weight Input
-            VStack(alignment: .leading, spacing: 6) {
-                Text("WEIGHT (\(settings.weightUnit.rawValue))")
-                    .font(.caption2)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.white.opacity(0.5))
+            // Row 2: Reps stepper + RPE stepper
+            HStack(spacing: 12) {
+                Spacer().frame(width: 38)
 
-                TextField("0", text: $set.weight)
-                    .keyboardType(.decimalPad)
-                    .foregroundColor(.white)
-                    .font(.system(size: 20, weight: .semibold))
-                    .padding(14)
-                    .background(Color.white.opacity(0.1))
-                    .cornerRadius(10)
-                    .focused($focusedField, equals: .weight)
-            }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("REPS").font(.caption2).fontWeight(.semibold).foregroundColor(.white.opacity(0.5))
+                    CounterStepper(value: $set.reps, minVal: 1, maxVal: 50, step: 1, isInt: true)
+                }
+                .frame(maxWidth: .infinity)
 
-            // Reps Input
-            VStack(alignment: .leading, spacing: 6) {
-                Text("REPS")
-                    .font(.caption2)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.white.opacity(0.5))
-
-                TextField("0", text: $set.reps)
-                    .keyboardType(.numberPad)
-                    .foregroundColor(.white)
-                    .font(.system(size: 20, weight: .semibold))
-                    .padding(14)
-                    .background(Color.white.opacity(0.1))
-                    .cornerRadius(10)
-                    .focused($focusedField, equals: .reps)
-            }
-
-            // RPE Input
-            VStack(alignment: .leading, spacing: 6) {
-                Text("RPE")
-                    .font(.caption2)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.white.opacity(0.5))
-
-                TextField("6-10", text: $set.rpe)
-                    .keyboardType(.decimalPad)
-                    .foregroundColor(.white)
-                    .font(.system(size: 20, weight: .semibold))
-                    .padding(14)
-                    .background(Color.white.opacity(0.1))
-                    .cornerRadius(10)
-                    .frame(width: 72)
-                    .focused($focusedField, equals: .rpe)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("RPE (1–10)").font(.caption2).fontWeight(.semibold).foregroundColor(.white.opacity(0.5))
+                    CounterStepper(value: $set.rpe, minVal: 5, maxVal: 10, step: 0.5, isInt: false)
+                }
+                .frame(maxWidth: .infinity)
             }
         }
         .padding(.horizontal)
+    }
+}
+
+// MARK: - CounterStepper
+
+struct CounterStepper: View {
+    @Binding var value: String
+    let minVal: Double
+    let maxVal: Double
+    let step: Double
+    let isInt: Bool
+
+    private var current: Double { Double(value) ?? (minVal - step) }
+
+    private func fmt(_ v: Double) -> String {
+        isInt ? "\(Int(v))" : (v.truncatingRemainder(dividingBy: 1) == 0 ? "\(Int(v))" : String(format: "%.1f", v))
+    }
+
+    var body: some View {
+        HStack(spacing: 0) {
+            Button(action: {
+                if current > minVal { value = fmt(current - step) }
+            }) {
+                Image(systemName: "minus")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundColor(.white)
+                    .frame(width: 38, height: 44)
+                    .background(Color.white.opacity(0.12))
+            }
+
+            Text(value.isEmpty ? "—" : value)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundColor(value.isEmpty ? .white.opacity(0.3) : .white)
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .background(Color.white.opacity(0.06))
+
+            Button(action: {
+                if value.isEmpty { value = fmt(minVal) }
+                else if current < maxVal { value = fmt(current + step) }
+            }) {
+                Image(systemName: "plus")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundColor(.white)
+                    .frame(width: 38, height: 44)
+                    .background(Color.white.opacity(0.12))
+            }
+        }
+        .cornerRadius(10)
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.white.opacity(0.1), lineWidth: 1))
     }
 }
 
@@ -1013,6 +1031,7 @@ struct WorkoutExercise {
     let name: String
     var sets: [ExerciseSetInput]
     let lastPerformance: String?
+    var targetReps: Int = 10
 }
 
 struct ExerciseSetInput {
