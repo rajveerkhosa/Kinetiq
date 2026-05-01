@@ -763,6 +763,9 @@ func loadDefaultExercises() {
             await MainActor.run {
                 suggestions[key] = response
                 isLoadingSuggestion[key] = false
+                if let response = response {
+                    WorkoutDataStore.shared.storeSuggestion(response, for: exerciseName)
+                }
             }
         }
     }

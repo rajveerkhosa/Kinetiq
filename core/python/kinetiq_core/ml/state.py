@@ -7,6 +7,8 @@ from .calibration import RPECalibration
 from .online_models import OnlineLinearRegressor, OnlineLogisticRegressor
 from .bandit import LinUCBBandit
 from .embeddings import EmbeddingTable
+from .bayesian_rpe import BayesianRPEPredictor
+from .user_clustering import UserClustering
 
 
 @dataclass
@@ -17,3 +19,9 @@ class MLState:
     calibration_by_ex: Dict[str, RPECalibration] = field(default_factory=dict)
     user_embed: EmbeddingTable = field(default_factory=lambda: EmbeddingTable(dim=4))
     ex_embed: EmbeddingTable = field(default_factory=lambda: EmbeddingTable(dim=4))
+    bayesian_rpe: BayesianRPEPredictor = field(
+        default_factory=lambda: BayesianRPEPredictor(dim=16, prior_precision=1.0, noise_variance=1.0)
+    )
+    user_clustering: UserClustering = field(
+        default_factory=lambda: UserClustering(k=3, feature_dim=4)
+    )

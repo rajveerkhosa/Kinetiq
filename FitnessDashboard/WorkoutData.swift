@@ -82,6 +82,9 @@ class WorkoutDataStore: ObservableObject {
         }
     }
 
+    /// Last ML suggestion per exercise name (in-memory only — goes stale after workouts).
+    @Published var lastSuggestions: [String: KinetiqService.SuggestionResponse] = [:]
+
     var nextWorkout: String {
         // Get the next workout based on user's selected workout split
         let workoutList = getWorkoutRotation()
@@ -200,6 +203,25 @@ class WorkoutDataStore: ObservableObject {
             let estimates = sets.map { $0.weight * (1 + Double($0.reps) / 30.0) }
             if let best = estimates.max() {
                 result.append((date: session.date, e1rm: best))
+            }
+        }
+        return result.sorted { $0.date < $1.date }
+    }
+
+    /// Store last ML suggestion for an exercise (used by StrengthView ML card).
+    func storeSuggestion(_ suggestion: KinetiqService.SuggestionResponse, for exerciseName: String) {
+        lastSuggestions[exerciseName] = suggestion
+    }
+
+    /// Weight + reps history for an exercise, joined with parent session date.
+    /// Returns tuples sorted oldest → newest.
+    func weightHistory(for exerciseName: String) -> [(date: Date, weight: Double, reps: Int)] {
+        var result: [(date: Date, weight: Double, reps: Int)] = []
+        for session in recentWorkouts {
+            for exercise in session.exercises where exercise.name.lowercased() == exerciseName.lowercased() {
+                for set in exercise.sets where set.weight > 0 && set.reps > 0 {
+                    result.append((date: session.date, weight: set.weight, reps: set.reps))
+                }
             }
         }
         return result.sorted { $0.date < $1.date }

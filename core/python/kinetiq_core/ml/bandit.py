@@ -43,6 +43,8 @@ class LinUCBBandit:
     alpha: float = 1.5
     Ainv: Dict[str, List[List[float]]] = field(default_factory=dict)
     b: Dict[str, List[float]] = field(default_factory=dict)
+    action_history: Dict[str, List[str]] = field(default_factory=dict)
+    oscillation_penalty: float = 0.2
 
     def _ensure(self, action: str) -> None:
         if action not in self.Ainv:
@@ -57,17 +59,34 @@ class LinUCBBandit:
         var = dot(x, Ax)
         return mean + self.alpha * math.sqrt(max(0.0, var))
 
-    def choose(self, actions: List[str], x: List[float]) -> str:
+    def _oscillation_penalty(self, action: str, user_key: str = "default") -> float:
+        """Return penalty if action would continue an alternating A→B→A pattern."""
+        hist = self.action_history.get(user_key, [])
+        if (
+            len(hist) >= 3
+            and hist[-1] != hist[-2]
+            and hist[-3] == hist[-1]
+            and action == hist[-1]
+        ):
+            return self.oscillation_penalty
+        return 0.0
+
+    def choose(self, actions: List[str], x: List[float], user_key: str = "default") -> str:
         best = actions[0]
-        best_s = self.score(best, x)
+        best_s = self.score(best, x) - self._oscillation_penalty(best, user_key)
         for a in actions[1:]:
-            s = self.score(a, x)
+            s = self.score(a, x) - self._oscillation_penalty(a, user_key)
             if s > best_s:
                 best, best_s = a, s
         return best
 
-    def update(self, action: str, x: List[float], reward: float) -> None:
+    def update(self, action: str, x: List[float], reward: float, user_key: str = "default") -> None:
         self._ensure(action)
         sherman_morrison_inv_update(self.Ainv[action], x)
         for i in range(self.dim):
             self.b[action][i] += reward * x[i]
+        # Track action history for oscillation detection (capped at 20 entries)
+        hist = self.action_history.setdefault(user_key, [])
+        hist.append(action)
+        if len(hist) > 20:
+            self.action_history[user_key] = hist[-20:]

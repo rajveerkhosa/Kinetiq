@@ -38,6 +38,8 @@ from kinetiq_core.ml.calibration import RPECalibration
 from kinetiq_core.ml.online_models import OnlineLinearRegressor, OnlineLogisticRegressor
 from kinetiq_core.ml.bandit import LinUCBBandit
 from kinetiq_core.ml.embeddings import EmbeddingTable
+from kinetiq_core.ml.bayesian_rpe import BayesianRPEPredictor
+from kinetiq_core.ml.user_clustering import UserClustering
 
 # ── Persistence directory ──────────────────────────────────────────────────────
 DATA_DIR = Path(__file__).parent / "data"
@@ -55,6 +57,7 @@ def _serialize_ml_state(state: MLState) -> Dict[str, Any]:
             "alpha": state.bandit.alpha,
             "Ainv": state.bandit.Ainv,
             "b": state.bandit.b,
+            "action_history": state.bandit.action_history,
         },
         "calibration_by_ex": {
             k: {"n": v.n, "bias": v.bias, "m2": v.m2}
@@ -70,6 +73,8 @@ def _serialize_ml_state(state: MLState) -> Dict[str, Any]:
             "lr": state.ex_embed.lr,
             "table": state.ex_embed.table,
         },
+        "bayesian_rpe": state.bayesian_rpe.to_dict(),
+        "user_clustering": state.user_clustering.to_dict(),
     }
 
 
@@ -81,6 +86,7 @@ def _deserialize_ml_state(d: Dict[str, Any]) -> MLState:
     bandit = LinUCBBandit(dim=bandit_d["dim"], alpha=bandit_d["alpha"])
     bandit.Ainv = bandit_d["Ainv"]
     bandit.b = bandit_d["b"]
+    bandit.action_history = bandit_d.get("action_history", {})
 
     calibration_by_ex = {
         k: RPECalibration(n=v["n"], bias=v["bias"], m2=v["m2"])
@@ -93,6 +99,17 @@ def _deserialize_ml_state(d: Dict[str, Any]) -> MLState:
     ee_d = d["ex_embed"]
     ex_embed = EmbeddingTable(dim=ee_d["dim"], lr=ee_d["lr"], table=ee_d["table"])
 
+    # New models — defensive fallback for old JSON files that predate these fields
+    if "bayesian_rpe" in d:
+        bayesian_rpe = BayesianRPEPredictor.from_dict(d["bayesian_rpe"])
+    else:
+        bayesian_rpe = BayesianRPEPredictor(dim=16)
+
+    if "user_clustering" in d:
+        user_clustering = UserClustering.from_dict(d["user_clustering"])
+    else:
+        user_clustering = UserClustering()
+
     return MLState(
         rpe_model=rpe_model,
         readiness_model=readiness_model,
@@ -100,6 +117,8 @@ def _deserialize_ml_state(d: Dict[str, Any]) -> MLState:
         calibration_by_ex=calibration_by_ex,
         user_embed=user_embed,
         ex_embed=ex_embed,
+        bayesian_rpe=bayesian_rpe,
+        user_clustering=user_clustering,
     )
 
 

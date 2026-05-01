@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from typing import List, Dict
+from typing import Dict, List, Tuple
 
 from ..models import SetLogWithTs, PlateauResult
 
@@ -172,3 +172,49 @@ def detect_plateau(
         recommendation=recommendation,
         explanation=explanation,
     )
+
+
+def apply_auto_deload(
+    plateau: PlateauResult,
+    current_weight: float,
+    deload_fraction: float = 0.10,
+) -> Tuple[bool, float]:
+    """
+    Determine if an automatic deload should be triggered.
+
+    Trigger condition: plateau.is_plateau AND plateau.weeks_at_same_weight >= 3.
+
+    Returns:
+        (should_deload, deload_weight) where deload_weight is rounded to nearest 2.5 lb.
+    """
+    if not plateau.is_plateau or plateau.weeks_at_same_weight < 3:
+        return False, current_weight
+    raw = current_weight * (1.0 - deload_fraction)
+    deload_weight = round(raw / 2.5) * 2.5
+    return True, deload_weight
+
+
+def is_deload_week(
+    history: List[SetLogWithTs],
+    deload_threshold: float = 0.90,
+) -> bool:
+    """
+    Returns True if the most recent week's max weight is less than
+    deload_threshold * previous week's max weight, indicating a deload is in progress.
+    """
+    if not history:
+        return False
+
+    week_sets: Dict[str, List[SetLogWithTs]] = {}
+    for i, s in enumerate(history):
+        wk = _iso_week_key(s.ts, i)
+        week_sets.setdefault(wk, []).append(s)
+
+    sorted_weeks = sorted(week_sets.keys())
+    if len(sorted_weeks) < 2:
+        return False
+
+    prev_max = max(s.weight for s in week_sets[sorted_weeks[-2]])
+    curr_max = max(s.weight for s in week_sets[sorted_weeks[-1]])
+
+    return curr_max < deload_threshold * prev_max

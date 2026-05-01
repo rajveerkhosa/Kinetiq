@@ -126,7 +126,7 @@ def suggest_next_set_ml(
         history,
     )
 
-    preferred_action = state.bandit.choose(ACTIONS, x_ctx)
+    preferred_action = state.bandit.choose(ACTIONS, x_ctx, user_key=user_id)
 
     # --------------------------------------------------
     # Score candidates using predicted RPE + rule priorities
@@ -183,7 +183,7 @@ def suggest_next_set_ml(
     # Bandit update (expected reward proxy)
     # --------------------------------------------------
     reward = max(-1.0, min(1.0, best_score - 0.5))
-    state.bandit.update(preferred_action, x_ctx, reward)
+    state.bandit.update(preferred_action, x_ctx, reward, user_key=user_id)
 
     action, next_weight, next_reps = best
     next_weight = normalize_display_weight(next_weight, settings.unit)

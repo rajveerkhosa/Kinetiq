@@ -1,16 +1,40 @@
+import Charts
 import SwiftUI
 
 private let strengthBg = Color(red: 0.95, green: 0.95, blue: 0.97)
 
-private let trackedLifts = ["Bench Press", "Squat", "Deadlift", "Overhead Press", "Barbell Row"]
+private let fallbackLifts = ["Bench Press", "Squat", "Deadlift", "Overhead Press", "Barbell Row"]
 
 struct StrengthView: View {
     @ObservedObject private var workoutData = WorkoutDataStore.shared
     @ObservedObject private var settings = UserSettings.shared
     @State private var selectedLift = "Bench Press"
 
+    /// All exercises the user has ever logged, ordered by most recently seen.
+    /// Falls back to the default 5 lifts when there's no history yet.
+    private var trackedLifts: [String] {
+        var seen = [String]()
+        var added = Set<String>()
+        for session in workoutData.recentWorkouts {
+            for exercise in session.exercises {
+                let name = exercise.name
+                if !added.contains(name) {
+                    seen.append(name)
+                    added.insert(name)
+                }
+            }
+        }
+        return seen.isEmpty ? fallbackLifts : seen
+    }
+    @State private var show1RMCalculator = false
+    @State private var calcWeight: String = ""
+    @State private var calcReps: Int = 5
+
     private var e1rmValue: Double? { workoutData.e1rm(for: selectedLift) }
     private var trend: [(date: Date, e1rm: Double)] { workoutData.e1rmTrend(for: selectedLift) }
+    private var weightData: [(date: Date, weight: Double, reps: Int)] {
+        workoutData.weightHistory(for: selectedLift)
+    }
 
     private func display(_ lbs: Double) -> Int {
         settings.weightUnit == .metric ? Int(lbs * 0.453592) : Int(lbs)
@@ -26,11 +50,23 @@ struct StrengthView: View {
                     liftSelector
                     heroCard
                     trendCard
+                    weightProgressCard
                     recentSetsCard
                     mlCard
                     Spacer().frame(height: 20)
                 }
                 .padding(.top, 12)
+            }
+        }
+        .sheet(isPresented: $show1RMCalculator) { oneRMCalculatorSheet }
+        .onAppear {
+            if !trackedLifts.contains(selectedLift), let first = trackedLifts.first {
+                selectedLift = first
+            }
+        }
+        .onChange(of: trackedLifts) { newLifts in
+            if !newLifts.contains(selectedLift), let first = newLifts.first {
+                selectedLift = first
             }
         }
     }
@@ -90,7 +126,6 @@ struct StrengthView: View {
                 Text("Estimated 1RM")
                     .font(.subheadline).foregroundColor(.gray)
 
-                // Best set used
                 if let bestSet = bestSetForSelectedLift {
                     HStack(spacing: 4) {
                         Image(systemName: "bolt.fill").font(.caption2).foregroundColor(.blue)
@@ -99,6 +134,16 @@ struct StrengthView: View {
                     }
                     .padding(.top, 4)
                 }
+
+                Button(action: { show1RMCalculator = true }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "function").font(.caption2)
+                        Text("1RM Calculator")
+                    }
+                    .font(.caption).foregroundColor(.blue)
+                }
+                .padding(.top, 8)
+
             } else {
                 Image(systemName: "chart.line.uptrend.xyaxis")
                     .font(.system(size: 36)).foregroundColor(.black.opacity(0.15))
@@ -107,6 +152,15 @@ struct StrengthView: View {
                     .font(.headline).foregroundColor(.black)
                 Text("Log a \(selectedLift) to get started")
                     .font(.subheadline).foregroundColor(.gray)
+
+                Button(action: { show1RMCalculator = true }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "function").font(.caption2)
+                        Text("1RM Calculator")
+                    }
+                    .font(.caption).foregroundColor(.blue)
+                }
+                .padding(.top, 8)
             }
         }
         .frame(maxWidth: .infinity)
@@ -125,7 +179,7 @@ struct StrengthView: View {
             }
     }
 
-    // MARK: - Trend Chart
+    // MARK: - Trend Chart (E1RM)
 
     private var trendCard: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -180,6 +234,72 @@ struct StrengthView: View {
         let f = DateFormatter(); f.dateFormat = "M/d"; return f.string(from: date)
     }
 
+    // MARK: - Weight Progress Chart
+
+    private var weightProgressCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Weight Progress")
+                .font(.headline).foregroundColor(.black)
+
+            if weightData.count < 2 {
+                HStack {
+                    Spacer()
+                    VStack(spacing: 6) {
+                        Image(systemName: "chart.line.uptrend.xyaxis")
+                            .font(.system(size: 28))
+                            .foregroundColor(.black.opacity(0.15))
+                        Text("Log more sets to see weight history")
+                            .font(.caption).foregroundColor(.gray)
+                    }
+                    Spacer()
+                }
+                .padding(.vertical, 20)
+            } else {
+                Chart {
+                    ForEach(Array(weightData.enumerated()), id: \.offset) { _, point in
+                        LineMark(
+                            x: .value("Date", point.date),
+                            y: .value("Weight", display(point.weight))
+                        )
+                        .foregroundStyle(Color.blue)
+                        .interpolationMethod(.catmullRom)
+
+                        PointMark(
+                            x: .value("Date", point.date),
+                            y: .value("Weight", display(point.weight))
+                        )
+                        .foregroundStyle(Color.blue)
+                        .symbolSize(30)
+                        .annotation(position: .top) {
+                            Text("\(point.reps)r")
+                                .font(.system(size: 7))
+                                .foregroundColor(.gray)
+                        }
+                    }
+                }
+                .chartXAxis {
+                    AxisMarks(values: .stride(by: .day, count: 7)) { _ in
+                        AxisValueLabel(format: .dateTime.month().day())
+                            .font(.system(size: 9))
+                    }
+                }
+                .chartYAxis {
+                    AxisMarks { _ in
+                        AxisValueLabel()
+                            .font(.system(size: 9))
+                        AxisGridLine()
+                    }
+                }
+                .frame(height: 140)
+            }
+        }
+        .padding(18)
+        .background(Color.white)
+        .cornerRadius(16)
+        .shadow(color: .black.opacity(0.04), radius: 4, y: 2)
+        .padding(.horizontal, 16)
+    }
+
     // MARK: - Recent Sets
 
     private var recentSetsCard: some View {
@@ -228,21 +348,54 @@ struct StrengthView: View {
         .padding(.horizontal, 16)
     }
 
-    // MARK: - ML Card (Coming Soon)
+    // MARK: - ML Card (Connected)
 
     private var mlCard: some View {
-        ZStack {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Image(systemName: "brain.head.profile")
-                        .font(.system(size: 22)).foregroundColor(.black)
-                    Text("AI Prediction")
-                        .font(.headline).foregroundColor(.black)
-                    Spacer()
-                }
-                Text("Your friend's ML algorithm will predict your next PR based on training history, RPE trends, and recovery patterns.")
-                    .font(.subheadline).foregroundColor(.gray).fixedSize(horizontal: false, vertical: true)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "brain.head.profile")
+                    .font(.system(size: 22)).foregroundColor(.black)
+                Text("AI Prediction")
+                    .font(.headline).foregroundColor(.black)
+                Spacer()
+            }
 
+            if let val = e1rmValue {
+                mlMetricRow(icon: "dumbbell.fill", label: "Current E1RM",
+                            value: "\(display(val)) \(unitLabel)")
+            }
+
+            if trend.count >= 2 {
+                let projected = projectedE1RM(inWeeks: 4)
+                mlMetricRow(icon: "chart.line.uptrend.xyaxis",
+                            label: "Projected E1RM (4 wks)",
+                            value: "\(display(projected)) \(unitLabel)")
+            }
+
+            if let suggestion = workoutData.lastSuggestions[selectedLift] {
+                if let plateau = suggestion.plateauInfo {
+                    let isPlateau = plateau.isPlateau
+                    let plateauText = isPlateau
+                        ? "Plateau (\(plateau.weeksAtSameWeight) wks)"
+                        : "Progressing"
+                    let icon = isPlateau ? "exclamationmark.triangle.fill" : "checkmark.circle.fill"
+                    mlMetricRow(icon: icon, label: "Plateau Status",
+                                value: plateauText,
+                                valueColor: isPlateau ? .orange : .green)
+                }
+
+                if let reliability = suggestion.rpeReliability, reliability.nObservations >= 3 {
+                    mlMetricRow(icon: "waveform.path.ecg", label: "RPE Reliability",
+                                value: "\(Int(reliability.score * 100))%")
+                }
+
+                if let plateau = suggestion.plateauInfo, plateau.isPlateau {
+                    Text(plateau.explanation)
+                        .font(.caption).foregroundColor(.gray)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 2)
+                }
+            } else {
                 HStack(spacing: 6) {
                     ForEach(["Trend Analysis", "RPE Tracking", "PR Forecasting"], id: \.self) { tag in
                         Text(tag).font(.caption).foregroundColor(.black)
@@ -250,23 +403,124 @@ struct StrengthView: View {
                             .background(Color.black.opacity(0.06)).cornerRadius(8)
                     }
                 }
+                Text("Log a set with RPE to unlock AI predictions.")
+                    .font(.caption).foregroundColor(.gray)
+                    .padding(.top, 2)
             }
-            .padding(18)
-            .background(Color.white)
-            .cornerRadius(16)
-            .shadow(color: .black.opacity(0.04), radius: 4, y: 2)
-            .opacity(0.5)
-
-            // Coming Soon overlay
-            VStack(spacing: 6) {
-                Image(systemName: "lock.fill").font(.system(size: 18)).foregroundColor(.white)
-                Text("Coming Soon").font(.subheadline).fontWeight(.semibold).foregroundColor(.white)
-            }
-            .padding(.horizontal, 20).padding(.vertical, 10)
-            .background(Color.black.opacity(0.75))
-            .cornerRadius(12)
         }
+        .padding(18)
+        .background(Color.white)
+        .cornerRadius(16)
+        .shadow(color: .black.opacity(0.04), radius: 4, y: 2)
         .padding(.horizontal, 16)
+    }
+
+    private func mlMetricRow(
+        icon: String,
+        label: String,
+        value: String,
+        valueColor: Color = .black
+    ) -> some View {
+        HStack {
+            Image(systemName: icon)
+                .font(.caption).foregroundColor(.gray).frame(width: 16)
+            Text(label)
+                .font(.subheadline).foregroundColor(.gray)
+            Spacer()
+            Text(value)
+                .font(.subheadline).fontWeight(.semibold).foregroundColor(valueColor)
+        }
+    }
+
+    private func projectedE1RM(inWeeks weeks: Int) -> Double {
+        guard trend.count >= 2 else { return e1rmValue ?? 0 }
+        let n = Double(trend.count)
+        let xMean = (n - 1) / 2.0
+        let yMean = trend.map(\.e1rm).reduce(0, +) / n
+        let numerator = trend.enumerated().reduce(0.0) { acc, pair in
+            acc + (Double(pair.offset) - xMean) * (pair.element.e1rm - yMean)
+        }
+        let denominator = trend.indices.reduce(0.0) { acc, i in
+            acc + (Double(i) - xMean) * (Double(i) - xMean)
+        }
+        let slope = denominator != 0 ? numerator / denominator : 0
+        let stepsForward = Double(weeks) * 2.0  // ~2 sessions per week
+        return max(0, (trend.last?.e1rm ?? 0) + slope * stepsForward)
+    }
+
+    // MARK: - 1RM Calculator Sheet
+
+    private var oneRMCalculatorSheet: some View {
+        NavigationStack {
+            Form {
+                Section("Input") {
+                    HStack {
+                        Text("Weight (\(unitLabel))")
+                        Spacer()
+                        TextField("0", text: $calcWeight)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 80)
+                    }
+                    Stepper("Reps: \(calcReps)", value: $calcReps, in: 1...20)
+                }
+
+                if let w = Double(calcWeight), w > 0, calcReps >= 1 {
+                    // Convert from display unit back to lbs for calculation
+                    let wLbs = settings.weightUnit == .metric ? w / 0.453592 : w
+                    let epley = wLbs * (1.0 + Double(calcReps) / 30.0)
+                    let brzycki = calcReps < 37 ? wLbs * (36.0 / (37.0 - Double(calcReps))) : epley
+                    let lombardi = wLbs * pow(Double(calcReps), 0.1)
+
+                    Section("Estimated 1RM") {
+                        FormulaRow(name: "Epley",    value: display(epley),    unit: unitLabel, isDefault: true)
+                        FormulaRow(name: "Brzycki",  value: display(brzycki),  unit: unitLabel, isDefault: false)
+                        FormulaRow(name: "Lombardi", value: display(lombardi), unit: unitLabel, isDefault: false)
+                    }
+
+                    Section("Average") {
+                        let avg = (epley + brzycki + lombardi) / 3.0
+                        HStack {
+                            Text("Mean estimate")
+                            Spacer()
+                            Text("\(display(avg)) \(unitLabel)")
+                                .fontWeight(.semibold).foregroundColor(.blue)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("1RM Calculator")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { show1RMCalculator = false }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Formula Row
+
+fileprivate struct FormulaRow: View {
+    let name: String
+    let value: Int
+    let unit: String
+    let isDefault: Bool
+
+    var body: some View {
+        HStack {
+            Text(name)
+                .foregroundColor(isDefault ? .primary : .secondary)
+            if isDefault {
+                Text("(default)")
+                    .font(.caption2).foregroundColor(.gray)
+            }
+            Spacer()
+            Text("\(value) \(unit)")
+                .fontWeight(isDefault ? .semibold : .regular)
+                .foregroundColor(isDefault ? .primary : .secondary)
+        }
     }
 }
 
