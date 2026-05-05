@@ -72,6 +72,14 @@ class LogSet(BaseModel):
     reps: int
     rpe: Optional[float] = None
 
+class LogPerformance(BaseModel):
+    session_id: int
+    exercise_name: str
+    set_number: int
+    actual_reps: int
+    actual_weight_lbs: float
+    completed: bool = True
+
 # -------------------------
 # Routes 
 # -------------------------
@@ -276,6 +284,7 @@ def remove_exercise_from_plan(session_exercise_id: int):
 def log_session(data: LogSession):
     with psycopg.connect(DATABASE_URL) as conn:
         with conn.cursor() as cur:
+            # Create the session
             cur.execute("""
                 INSERT INTO workoutsession (user_id, plan_id, session_date, start_workout_flag, workout_miss_flag)
                 VALUES (%s, %s, %s, true, %s)
@@ -287,22 +296,17 @@ def log_session(data: LogSession):
             cur.execute("""
                 UPDATE workoutplan SET last_used_date = %s WHERE plan_id = %s
             """, (date.today(), data.plan_id))
+
+            # Copy plan exercises into session exercises
+            cur.execute("""
+                INSERT INTO sessionexercise (session_id, plan_id, exercise_id, target_sets, target_reps, notes)
+                SELECT %s, plan_id, exercise_id, target_sets, target_reps, notes
+                FROM sessionexercise
+                WHERE plan_id = %s AND session_id IS NULL
+            """, (session_id, data.plan_id))
+
             conn.commit()
     return {"session_id": session_id}
-
-@app.get("/sessions/{user_id}")
-def get_sessions(user_id: int):
-    with psycopg.connect(DATABASE_URL) as conn:
-        with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
-            cur.execute("""
-                SELECT ws.*, wp.plan_name 
-                FROM workoutsession ws
-                JOIN workoutplan wp ON ws.plan_id = wp.plan_id
-                WHERE ws.user_id = %s
-                ORDER BY ws.session_date DESC
-            """, (user_id,))
-            sessions = cur.fetchall()
-    return {"sessions": sessions}
 
 @app.post("/sets")
 def log_set(data: LogSet):
@@ -326,19 +330,45 @@ def log_set(data: LogSet):
             conn.commit()
     return {"set_id": set_id}
 
-@app.get("/sets/{session_id}")
-def get_sets(session_id: int):
+@app.post("/sets")
+def log_set(data: LogSet):
     with psycopg.connect(DATABASE_URL) as conn:
-        with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
+        with conn.cursor() as cur:
+            # Look up exercise_id by name
             cur.execute("""
-                SELECT ws.*, e.exercise_name, e.muscle_group
-                FROM workoutsets ws
-                JOIN exercises e ON ws.exercise_id = e.exercise_id
-                WHERE ws.workout_session_id = %s
-                ORDER BY ws.exercise_id, ws.set_number
-            """, (session_id,))
-            sets = cur.fetchall()
-    return {"sets": sets}
+                SELECT exercise_id FROM exercises WHERE exercise_name = %s
+            """, (data.exercise_name,))
+            result = cur.fetchone()
+            if not result:
+                raise HTTPException(status_code=404, detail="Exercise not found")
+            exercise_id = result[0]
+
+            # Log the set
+            cur.execute("""
+                INSERT INTO workoutsets (workout_session_id, exercise_id, set_number, weight_lb, reps, rpe)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                RETURNING set_id
+            """, (data.session_id, exercise_id, data.set_number, data.weight_lb, data.reps, data.rpe))
+            set_id = cur.fetchone()[0]
+
+            # Find the session_exercise_id for this session and exercise
+            cur.execute("""
+                SELECT session_exercise_id FROM sessionexercise
+                WHERE session_id = %s AND exercise_id = %s
+            """, (data.session_id, exercise_id))
+            se_result = cur.fetchone()
+
+            # Log performance if session exercise exists
+            if se_result:
+                session_exercise_id = se_result[0]
+                cur.execute("""
+                    INSERT INTO exerciseperformance 
+                        (session_exercise_id, set_number, completed_flag, actual_reps, actual_weight_lbs)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (session_exercise_id, data.set_number, True, data.reps, data.weight_lb))
+
+            conn.commit()
+    return {"set_id": set_id}
 
 
 # *************************
@@ -393,6 +423,25 @@ def get_nutrition_logs(user_id: int):
             """, (user_id,))
             logs = cur.fetchall()
     return {"logs": logs}
+
+
+@app.get("/performance/{user_id}/{exercise_name}")
+def get_exercise_performance(user_id: int, exercise_name: str):
+    with psycopg.connect(DATABASE_URL) as conn:
+        with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
+            cur.execute("""
+                SELECT ep.set_number, ep.actual_reps, ep.actual_weight_lbs,
+                       ep.completed_flag, ws.session_date, e.exercise_name
+                FROM exerciseperformance ep
+                JOIN sessionexercise se ON ep.session_exercise_id = se.session_exercise_id
+                JOIN workoutsession ws ON se.session_id = ws.session_id
+                JOIN exercises e ON se.exercise_id = e.exercise_id
+                WHERE ws.user_id = %s AND e.exercise_name = %s
+                ORDER BY ws.session_date DESC
+            """, (user_id, exercise_name))
+            records = cur.fetchall()
+    return {"performance": records}
+
 
 @app.post("/nutrition/entries")
 def log_food_entry(data: LogFoodEntry):
