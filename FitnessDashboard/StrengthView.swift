@@ -2,16 +2,30 @@ import Charts
 import SwiftUI
 
 private let strengthBg = Color(red: 0.95, green: 0.95, blue: 0.97)
-
 private let fallbackLifts = ["Bench Press", "Squat", "Deadlift", "Overhead Press", "Barbell Row"]
 
+struct DBPerformanceSet {
+    let sessionDate: Date
+    let setNumber: Int
+    let actualReps: Int
+    let actualWeightLbs: Double
+
+    var e1rm: Double {
+        guard actualReps > 0, actualReps <= 12, actualWeightLbs > 0 else { return 0 }
+        return actualWeightLbs * (1 + Double(actualReps) / 30.0)
+    }
+}
+
 struct StrengthView: View {
+    @State private var dbSets: [DBPerformanceSet] = []
+    @State private var isLoadingPerformance = false
     @ObservedObject private var workoutData = WorkoutDataStore.shared
     @ObservedObject private var settings = UserSettings.shared
     @State private var selectedLift = "Bench Press"
+    @State private var show1RMCalculator = false
+    @State private var calcWeight: String = ""
+    @State private var calcReps: Int = 5
 
-    /// All exercises the user has ever logged, ordered by most recently seen.
-    /// Falls back to the default 5 lifts when there's no history yet.
     private var trackedLifts: [String] {
         var seen = [String]()
         var added = Set<String>()
@@ -26,14 +40,36 @@ struct StrengthView: View {
         }
         return seen.isEmpty ? fallbackLifts : seen
     }
-    @State private var show1RMCalculator = false
-    @State private var calcWeight: String = ""
-    @State private var calcReps: Int = 5
 
-    private var e1rmValue: Double? { workoutData.e1rm(for: selectedLift) }
-    private var trend: [(date: Date, e1rm: Double)] { workoutData.e1rmTrend(for: selectedLift) }
+    private var e1rmValue: Double? { dbE1rm ?? workoutData.e1rm(for: selectedLift) }
+    private var trend: [(date: Date, e1rm: Double)] { dbTrend.isEmpty ? workoutData.e1rmTrend(for: selectedLift) : dbTrend }
     private var weightData: [(date: Date, weight: Double, reps: Int)] {
-        workoutData.weightHistory(for: selectedLift)
+        dbWeightHistory.isEmpty ? workoutData.weightHistory(for: selectedLift) : dbWeightHistory
+    }
+
+    private var dbE1rm: Double? {
+        let estimates = dbSets
+            .filter { $0.actualReps > 0 && $0.actualReps <= 12 && $0.actualWeightLbs > 0 }
+            .map { $0.e1rm }
+        return estimates.max()
+    }
+
+    private var dbTrend: [(date: Date, e1rm: Double)] {
+        var byDate: [Date: Double] = [:]
+        for set in dbSets {
+            let day = Calendar.current.startOfDay(for: set.sessionDate)
+            let est = set.e1rm
+            if est > 0 {
+                byDate[day] = max(byDate[day] ?? 0, est)
+            }
+        }
+        return byDate.map { (date: $0.key, e1rm: $0.value) }.sorted { $0.date < $1.date }
+    }
+
+    private var dbWeightHistory: [(date: Date, weight: Double, reps: Int)] {
+        dbSets
+            .filter { $0.actualWeightLbs > 0 && $0.actualReps > 0 }
+            .map { (date: $0.sessionDate, weight: $0.actualWeightLbs, reps: $0.actualReps) }
     }
 
     private func display(_ lbs: Double) -> Int {
@@ -67,6 +103,57 @@ struct StrengthView: View {
         .onChange(of: trackedLifts) { newLifts in
             if !newLifts.contains(selectedLift), let first = newLifts.first {
                 selectedLift = first
+            }
+        }
+        .task {
+            fetchPerformance(for: selectedLift)
+        }
+        .onChange(of: selectedLift) { newLift in
+            fetchPerformance(for: newLift)
+        }
+    }
+
+    // MARK: - Fetch Performance
+
+    private func fetchPerformance(for exerciseName: String) {
+        let userId = UserDefaults.standard.integer(forKey: "user_id")
+        guard userId > 0 else { return }
+
+        let encoded = exerciseName.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? exerciseName
+        guard let url = URL(string: "https://kinetiq-dzfm.onrender.com/performance/\(userId)/\(encoded)") else { return }
+
+        isLoadingPerformance = true
+
+        Task {
+            do {
+                let (data, _) = try await URLSession.shared.data(from: url)
+                if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let records = json["performance"] as? [[String: Any]] {
+
+                    let formatter = DateFormatter()
+                    formatter.dateFormat = "yyyy-MM-dd"
+
+                    let parsed: [DBPerformanceSet] = records.compactMap { record in
+                        guard let dateStr = record["session_date"] as? String,
+                              let date = formatter.date(from: dateStr),
+                              let reps = record["actual_reps"] as? Int,
+                              let weight = record["actual_weight_lbs"] as? Double else { return nil }
+                        return DBPerformanceSet(
+                            sessionDate: date,
+                            setNumber: record["set_number"] as? Int ?? 0,
+                            actualReps: reps,
+                            actualWeightLbs: weight
+                        )
+                    }
+
+                    await MainActor.run {
+                        dbSets = parsed.sorted { $0.sessionDate < $1.sessionDate }
+                        isLoadingPerformance = false
+                    }
+                }
+            } catch {
+                print("Error fetching performance:", error)
+                await MainActor.run { isLoadingPerformance = false }
             }
         }
     }
@@ -348,7 +435,7 @@ struct StrengthView: View {
         .padding(.horizontal, 16)
     }
 
-    // MARK: - ML Card (Connected)
+    // MARK: - ML Card
 
     private var mlCard: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -444,7 +531,7 @@ struct StrengthView: View {
             acc + (Double(i) - xMean) * (Double(i) - xMean)
         }
         let slope = denominator != 0 ? numerator / denominator : 0
-        let stepsForward = Double(weeks) * 2.0  // ~2 sessions per week
+        let stepsForward = Double(weeks) * 2.0
         return max(0, (trend.last?.e1rm ?? 0) + slope * stepsForward)
     }
 
@@ -466,7 +553,6 @@ struct StrengthView: View {
                 }
 
                 if let w = Double(calcWeight), w > 0, calcReps >= 1 {
-                    // Convert from display unit back to lbs for calculation
                     let wLbs = settings.weightUnit == .metric ? w / 0.453592 : w
                     let epley = wLbs * (1.0 + Double(calcReps) / 30.0)
                     let brzycki = calcReps < 37 ? wLbs * (36.0 / (37.0 - Double(calcReps))) : epley
