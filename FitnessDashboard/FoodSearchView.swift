@@ -179,6 +179,7 @@ struct FoodSearchView: View {
             }
         }
         .onChange(of: vm.query) { _, _ in vm.search() }
+        .ignoresSafeArea(.keyboard)
         .sheet(isPresented: $showManualEntry) {
             ManualFoodEntryView(date: date, prefillName: vm.query) { dismiss() }
         }

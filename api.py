@@ -529,6 +529,22 @@ class LogFoodEntry(BaseModel):
     serving_size: Optional[str] = "1 serving"
     quantity: float = 1.0
 
+@app.get("/nutrition/search")
+async def nutrition_search(q: str):
+    if not NINJA_API_KEY:
+        raise HTTPException(status_code=503, detail="Nutrition API not configured")
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            "https://api.api-ninjas.com/v1/nutrition",
+            params={"query": q},
+            headers={"X-Api-Key": NINJA_API_KEY},
+            timeout=10.0
+        )
+    if resp.status_code != 200:
+        return {"items": []}
+    return {"items": resp.json()}
+
+
 @app.post("/nutrition/log")
 def upsert_nutrition_log(data: LogNutrition):
     with psycopg.connect(DATABASE_URL) as conn:
@@ -611,24 +627,6 @@ def delete_food_entry(entry_id: int):
             cur.execute("DELETE FROM nutrition_entries WHERE entry_id = %s", (entry_id,))
             conn.commit()
     return {"message": "Entry deleted"}
-
-
-# ── Nutrition Search ───────────────────────────────────────────────────────────
-
-@app.get("/nutrition/search")
-async def nutrition_search(q: str):
-    if not NINJA_API_KEY:
-        raise HTTPException(status_code=503, detail="Nutrition API not configured")
-    async with httpx.AsyncClient() as client:
-        resp = await client.get(
-            "https://api.api-ninjas.com/v1/nutrition",
-            params={"query": q},
-            headers={"X-Api-Key": NINJA_API_KEY},
-            timeout=10.0
-        )
-    if resp.status_code != 200:
-        return {"items": []}
-    return {"items": resp.json()}
 
 
 # ── Password Reset ─────────────────────────────────────────────────────────────
