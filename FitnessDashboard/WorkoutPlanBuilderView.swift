@@ -268,6 +268,7 @@ struct WorkoutPlanBuilderView: View {
             print("Plan saved successfully with plan_id: \(planId)")
 
             await MainActor.run {
+                NotificationCenter.default.post(name: .planCreated, object: nil)
                 dismiss()
             }
 

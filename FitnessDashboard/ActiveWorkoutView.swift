@@ -27,7 +27,7 @@ struct ActiveWorkoutView: View {
     @ObservedObject var settings = UserSettings.shared
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .top) {
             Color.black
                 .ignoresSafeArea()
 
@@ -396,6 +396,7 @@ struct ActiveWorkoutView: View {
                 currentExercise: currentExerciseIndex
             )
         }
+        .ignoresSafeArea(.keyboard)
         .sheet(isPresented: $showExercisePicker) {
             ExercisePickerView(selectedExercises: $exercises)
         }
@@ -504,113 +505,89 @@ struct ActiveWorkoutView: View {
                 showConfetti = false
                 showCompletionScreen = true
             }
-
-	private func savePrediction(exerciseName: String, response: KinetiqService.SuggestionResponse) {
-    let userId = UserDefaults.standard.integer(forKey: "user_id")
-    guard userId > 0 else { return }
-
-    let predictedPerformance = "\(Int(response.nextWeight)) \(response.unit) x \(response.nextReps) reps"
-    let recommendedAdjustment = response.action
-
-    Task {
-        guard let url = URL(string: "https://kinetiq-dzfm.onrender.com/ml/predictions") else { return }
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-        let body: [String: Any] = [
-            "user_id": userId,
-            "exercise_name": exerciseName,
-            "predicted_performance": predictedPerformance,
-            "recommended_adjustment": recommendedAdjustment
-        ]
-        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        _ = try? await URLSession.shared.data(for: request)
+        }
     }
-}
 
-private func saveAutoAdjustment(
-    exerciseName: String,
-    exerciseIndex: Int,
-    setIndex: Int,
-    response: KinetiqService.SuggestionResponse
-) {
-    let userId = UserDefaults.standard.integer(forKey: "user_id")
-    guard userId > 0 else { return }
+    private func saveAutoAdjustment(
+        exerciseName: String,
+        exerciseIndex: Int,
+        setIndex: Int,
+        response: KinetiqService.SuggestionResponse
+    ) {
+        let userId = UserDefaults.standard.integer(forKey: "user_id")
+        guard userId > 0 else { return }
 
-    // Only log if there was actually a weight or rep change
-    guard response.action == "add_weight" ||
-          response.action == "lower_weight" ||
-          response.action == "add_reps" ||
-          response.action == "lower_reps" else { return }
+        guard response.action == "add_weight" ||
+              response.action == "lower_weight" ||
+              response.action == "add_reps" ||
+              response.action == "lower_reps" else { return }
 
-    // Get the current set values
-    guard exerciseIndex < exercises.count,
-          setIndex < exercises[exerciseIndex].sets.count else { return }
+        guard exerciseIndex < exercises.count,
+              setIndex < exercises[exerciseIndex].sets.count else { return }
 
-    let currentSet = exercises[exerciseIndex].sets[setIndex]
-    guard let oldWeight = Double(currentSet.weight),
-          let oldReps = Int(currentSet.reps) else { return }
+        let currentSet = exercises[exerciseIndex].sets[setIndex]
+        guard let oldWeight = Double(currentSet.weight),
+              let oldReps = Int(currentSet.reps) else { return }
 
-    // Need session_exercise_id — fetch from sessionexercise table
-    let planId = UserDefaults.standard.integer(forKey: "active_plan_id")
-    guard planId > 0 else { return }
+        let planId = UserDefaults.standard.integer(forKey: "active_plan_id")
+        guard planId > 0 else { return }
 
-    let reason = "\(response.action): \(response.explanation)"
-    let truncatedReason = String(reason.prefix(100))
+        let reason = "\(response.action): \(response.explanation)"
+        let truncatedReason = String(reason.prefix(100))
 
-    Task {
-        do {
-            // First get the session_exercise_id for this exercise
-            let encoded = exerciseName.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? exerciseName
-            guard let seUrl = URL(string: "https://kinetiq-dzfm.onrender.com/plans/\(planId)/exercises") else { return }
-            let (seData, _) = try await URLSession.shared.data(from: seUrl)
+        Task {
+            do {
+                guard let seUrl = URL(string: "https://kinetiq-dzfm.onrender.com/plans/\(planId)/exercises") else { return }
+                let (seData, _) = try await URLSession.shared.data(from: seUrl)
 
-            guard let seJson = try JSONSerialization.jsonObject(with: seData) as? [String: Any],
-                  let exerciseList = seJson["exercises"] as? [[String: Any]],
-                  let match = exerciseList.first(where: {
-                      ($0["exercise_name"] as? String) == exerciseName
-                  }),
-                  let sessionExerciseId = match["session_exercise_id"] as? Int else { return }
+                guard let seJson = try JSONSerialization.jsonObject(with: seData) as? [String: Any],
+                      let exerciseList = seJson["exercises"] as? [[String: Any]],
+                      let match = exerciseList.first(where: { ($0["exercise_name"] as? String) == exerciseName }),
+                      let sessionExerciseId = match["session_exercise_id"] as? Int else { return }
 
-            // Log the adjustment
-            guard let url = URL(string: "https://kinetiq-dzfm.onrender.com/autoadjustments") else { return }
+                guard let url = URL(string: "https://kinetiq-dzfm.onrender.com/autoadjustments") else { return }
+                var request = URLRequest(url: url)
+                request.httpMethod = "POST"
+                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+                let body: [String: Any] = [
+                    "session_exercise_id": sessionExerciseId,
+                    "old_weight_lb": oldWeight,
+                    "new_weight_lb": response.nextWeight,
+                    "old_reps": oldReps,
+                    "new_reps": response.nextReps,
+                    "reason": truncatedReason
+                ]
+                request.httpBody = try JSONSerialization.data(withJSONObject: body)
+                _ = try await URLSession.shared.data(for: request)
+
+            } catch {
+                print("Error saving auto adjustment:", error)
+            }
+        }
+    }
+
+    private func savePrediction(exerciseName: String, response: KinetiqService.SuggestionResponse) {
+        let userId = UserDefaults.standard.integer(forKey: "user_id")
+        guard userId > 0 else { return }
+
+        let predictedPerformance = "\(Int(response.nextWeight)) \(response.unit) x \(response.nextReps) reps"
+        let recommendedAdjustment = response.action
+
+        Task {
+            guard let url = URL(string: "https://kinetiq-dzfm.onrender.com/ml/predictions") else { return }
             var request = URLRequest(url: url)
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
             let body: [String: Any] = [
-                "session_exercise_id": sessionExerciseId,
-                "old_weight_lb": oldWeight,
-                "new_weight_lb": response.nextWeight,
-                "old_reps": oldReps,
-                "new_reps": response.nextReps,
-                "reason": truncatedReason
+                "user_id": userId,
+                "exercise_name": exerciseName,
+                "predicted_performance": predictedPerformance,
+                "recommended_adjustment": recommendedAdjustment
             ]
-            request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            _ = try await URLSession.shared.data(for: request)
-
-        } catch {
-            print("Error saving auto adjustment:", error)
-        }
-    }
-}
-
-await MainActor.run {
-    suggestions[key] = response
-    isLoadingSuggestion[key] = false
-    if let response = response {
-        WorkoutDataStore.shared.storeSuggestion(response, for: exerciseName)
-        savePrediction(exerciseName: exerciseName, response: response)
-        saveAutoAdjustment(
-            exerciseName: exerciseName,
-            exerciseIndex: exerciseIndex,
-            setIndex: setIndex,
-            response: response
-        )
-    }
-}
-
+            request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+            _ = try? await URLSession.shared.data(for: request)
         }
     }
 
@@ -872,7 +849,8 @@ func loadDefaultExercises() {
                 isLoadingSuggestion[key] = false
                 if let response = response {
                     WorkoutDataStore.shared.storeSuggestion(response, for: exerciseName)
-		    savePrediction(exerciseName: exerciseName, response: response)
+                    savePrediction(exerciseName: exerciseName, response: response)
+                    saveAutoAdjustment(exerciseName: exerciseName, exerciseIndex: exerciseIndex, setIndex: setIndex, response: response)
                 }
             }
         }

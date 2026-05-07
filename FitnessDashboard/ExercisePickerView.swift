@@ -187,20 +187,15 @@ struct ExerciseSelectionCard: View {
                     Text(exercise.name)
                         .font(.headline)
                         .foregroundColor(.black)
+                        .lineLimit(1)
 
-                    HStack {
-                        Text(exercise.muscleGroup.rawValue)
-                            .font(.caption)
-                            .foregroundColor(.gray)
-
-                        Text("•")
-                            .foregroundColor(.gray)
-                            .font(.caption)
-
-                        Text(exercise.equipment)
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                    }
+                    Text(exercise.equipment.isEmpty
+                         ? exercise.muscleGroup.rawValue
+                         : "\(exercise.muscleGroup.rawValue) · \(exercise.equipment)")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                 }
 
                 Spacer()

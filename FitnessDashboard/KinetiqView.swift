@@ -1,9 +1,18 @@
 import SwiftUI
 
+struct ServerPlan: Identifiable {
+    let id: Int
+    let name: String
+    let isActive: Bool
+}
+
 struct KinetiqView: View {
     @ObservedObject var workoutData = WorkoutDataStore.shared
+    @ObservedObject var workoutManager = ActiveWorkoutManager.shared
     @State private var showWorkoutOverview = false
-    @State private var showActiveWorkout = false
+    @State private var plans: [ServerPlan] = []
+    @State private var isLoadingPlans = false
+    @State private var showCreatePlan = false
 
     var body: some View {
         ZStack {
@@ -32,11 +41,12 @@ struct KinetiqView: View {
                         .padding(.horizontal)
 
                         Button(action: {
-                            showWorkoutOverview = true
+                            workoutManager.workoutType = workoutData.nextWorkout
+                            workoutManager.isActive = true
                         }) {
                             HStack {
                                 Image(systemName: "play.fill")
-                                Text("Start Workout")
+                                Text("Quick Start")
                             }
                             .fontWeight(.semibold)
                             .foregroundColor(.black)
@@ -53,6 +63,61 @@ struct KinetiqView: View {
                     .cornerRadius(20)
                     .padding(.horizontal)
                     .padding(.top, 20)
+
+                    // My Plans
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Text("My Plans")
+                                .font(.headline)
+                                .foregroundColor(.black)
+                            Spacer()
+                            Button(action: { showCreatePlan = true }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "plus")
+                                    Text("New")
+                                }
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 7)
+                                .background(Color.black)
+                                .cornerRadius(20)
+                            }
+                        }
+                        .padding(.horizontal)
+
+                        if isLoadingPlans {
+                            HStack { Spacer(); ProgressView(); Spacer() }
+                                .padding()
+                        } else if plans.isEmpty {
+                            HStack {
+                                Spacer()
+                                VStack(spacing: 8) {
+                                    Image(systemName: "list.bullet.clipboard")
+                                        .font(.system(size: 32))
+                                        .foregroundColor(.gray.opacity(0.4))
+                                    Text("No plans yet — tap New to create one")
+                                        .font(.subheadline)
+                                        .foregroundColor(.gray)
+                                }
+                                Spacer()
+                            }
+                            .padding(.vertical, 24)
+                            .background(Color.white)
+                            .cornerRadius(16)
+                            .padding(.horizontal)
+                        } else {
+                            ForEach(plans) { plan in
+                                PlanCard(plan: plan) {
+                                    UserDefaults.standard.set(plan.id, forKey: "active_plan_id")
+                                    workoutManager.workoutType = plan.name
+                                    workoutManager.isActive = true
+                                }
+                                .padding(.horizontal)
+                            }
+                        }
+                    }
 
                     // Stats Grid
                     HStack(spacing: 16) {
@@ -84,16 +149,34 @@ struct KinetiqView: View {
                 }
             }
         }
-        .sheet(isPresented: $showWorkoutOverview) {
-            WorkoutOverviewView(
-                isPresented: $showWorkoutOverview,
-                showActiveWorkout: $showActiveWorkout,
-                workoutType: workoutData.nextWorkout,
-                exercises: loadWorkoutExercises(for: workoutData.nextWorkout)
-            )
+        .sheet(isPresented: $showCreatePlan) {
+            WorkoutPlanBuilderView()
         }
-        .fullScreenCover(isPresented: $showActiveWorkout) {
-            ActiveWorkoutView(isPresented: $showActiveWorkout, workoutType: workoutData.nextWorkout)
+        .task { await fetchPlans() }
+        .onReceive(NotificationCenter.default.publisher(for: .planCreated)) { _ in
+            Task { await fetchPlans() }
+        }
+    }
+
+    func fetchPlans() async {
+        let userId = UserDefaults.standard.integer(forKey: "user_id")
+        guard userId > 0,
+              let url = URL(string: "https://kinetiq-dzfm.onrender.com/plans/\(userId)") else { return }
+        isLoadingPlans = true
+        if let (data, _) = try? await URLSession.shared.data(from: url),
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let list = json["plans"] as? [[String: Any]] {
+            let fetched = list.compactMap { p -> ServerPlan? in
+                guard let id = p["plan_id"] as? Int, let name = p["plan_name"] as? String else { return nil }
+                let active = p["active_flag"] as? Bool ?? false
+                return ServerPlan(id: id, name: name, isActive: active)
+            }
+            await MainActor.run {
+                plans = fetched
+                isLoadingPlans = false
+            }
+        } else {
+            await MainActor.run { isLoadingPlans = false }
         }
     }
 
@@ -129,6 +212,7 @@ struct KinetiqView: View {
 
 struct WorkoutCard: View {
     let workout: WorkoutSession
+    @State private var showSummary = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -180,7 +264,7 @@ struct WorkoutCard: View {
                 }
             }
 
-            Button(action: {}) {
+            Button(action: { showSummary = true }) {
                 HStack {
                     Text("View Details")
                         .font(.subheadline)
@@ -194,6 +278,9 @@ struct WorkoutCard: View {
         .padding()
         .background(Color.white)
         .cornerRadius(16)
+        .sheet(isPresented: $showSummary) {
+            WorkoutSummarySheet(workout: workout)
+        }
     }
 
     func formatDate(_ date: Date) -> String {
@@ -209,6 +296,59 @@ struct WorkoutCard: View {
             return formatter.string(from: date)
         }
     }
+}
+
+struct PlanCard: View {
+    let plan: ServerPlan
+    let onStart: () -> Void
+
+    var body: some View {
+        HStack(spacing: 16) {
+            ZStack {
+                Circle()
+                    .fill(plan.isActive ? Color.black : Color.black.opacity(0.08))
+                    .frame(width: 44, height: 44)
+                Image(systemName: "dumbbell.fill")
+                    .font(.caption)
+                    .foregroundColor(plan.isActive ? .white : .black)
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(plan.name)
+                    .font(.headline)
+                    .foregroundColor(.black)
+                if plan.isActive {
+                    Text("Active plan")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                }
+            }
+
+            Spacer()
+
+            Button(action: onStart) {
+                HStack(spacing: 6) {
+                    Image(systemName: "play.fill")
+                    Text("Start")
+                }
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundColor(.white)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 9)
+                .background(Color.black)
+                .cornerRadius(20)
+            }
+        }
+        .padding()
+        .background(Color.white)
+        .cornerRadius(16)
+        .shadow(color: Color.black.opacity(0.04), radius: 4, x: 0, y: 2)
+    }
+}
+
+extension Notification.Name {
+    static let planCreated = Notification.Name("planCreated")
 }
 
 struct StatCard: View {

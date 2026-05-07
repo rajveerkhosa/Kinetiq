@@ -180,6 +180,7 @@ struct LoginView: View {
                                 UserDefaults.standard.set(planId, forKey: "active_plan_id")
                             }
                         }
+                        WorkoutDataStore.shared.syncFromServer(userId: userId)
                     }
                     await MainActor.run {
                         var t = Transaction()

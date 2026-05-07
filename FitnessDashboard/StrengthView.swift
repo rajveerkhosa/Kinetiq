@@ -526,18 +526,19 @@ struct StrengthView: View {
 
     private func projectedE1RM(inWeeks weeks: Int) -> Double {
         guard trend.count >= 2 else { return e1rmValue ?? 0 }
-        let n = Double(trend.count)
-        let xMean = (n - 1) / 2.0
-        let yMean = trend.map(\.e1rm).reduce(0, +) / n
-        let numerator = trend.enumerated().reduce(0.0) { acc, pair in
-            acc + (Double(pair.offset) - xMean) * (pair.element.e1rm - yMean)
-        }
-        let denominator = trend.indices.reduce(0.0) { acc, i in
-            acc + (Double(i) - xMean) * (Double(i) - xMean)
-        }
-        let slope = denominator != 0 ? numerator / denominator : 0
-        let stepsForward = Double(weeks) * 2.0
-        return max(0, (trend.last?.e1rm ?? 0) + slope * stepsForward)
+        let epoch = trend.first!.date.timeIntervalSince1970
+        let points = trend.map { (x: ($0.date.timeIntervalSince1970 - epoch) / 86400.0, y: $0.e1rm) }
+        let n = Double(points.count)
+        let xMean = points.map(\.x).reduce(0, +) / n
+        let yMean = points.map(\.y).reduce(0, +) / n
+        let numerator = points.reduce(0.0) { $0 + ($1.x - xMean) * ($1.y - yMean) }
+        let denominator = points.reduce(0.0) { $0 + ($1.x - xMean) * ($1.x - xMean) }
+        let slopePerDay = denominator > 0 ? numerator / denominator : 0
+        let daysForward = Double(weeks) * 7.0
+        let current = trend.last?.e1rm ?? 0
+        // Cap at 1.5% gain per week — keeps projections physiologically plausible
+        let maxGain = current * 0.015 * Double(weeks)
+        return max(0, current + min(slopePerDay * daysForward, maxGain))
     }
 
     // MARK: - 1RM Calculator Sheet

@@ -20,6 +20,11 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import psycopg
+from dotenv import load_dotenv
+load_dotenv()
+_DATABASE_URL = os.getenv("DATABASE_URL", "").replace("postgres://", "postgresql://", 1)
+
 from fastapi import BackgroundTasks, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -103,28 +108,59 @@ def _deserialize_ml_state(d: Dict[str, Any]) -> MLState:
     )
 
 
-def _state_path(user_id: str) -> Path:
-    return DATA_DIR / f"ml_state_{user_id}.json"
-
-
 def _save_ml_state(user_id: str, state: MLState) -> None:
+    if not _DATABASE_URL:
+        return
     try:
-        with _state_path(user_id).open("w") as f:
-            json.dump(_serialize_ml_state(state), f)
+        payload = json.dumps(_serialize_ml_state(state))
+        with psycopg.connect(_DATABASE_URL) as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO ml_state (user_id, state_json, updated_at)
+                    VALUES (%s, %s, NOW())
+                    ON CONFLICT (user_id) DO UPDATE
+                        SET state_json = EXCLUDED.state_json,
+                            updated_at = NOW()
+                """, (user_id, payload))
+                conn.commit()
     except Exception as e:
         print(f"[warn] Failed to save MLState for {user_id}: {e}")
 
 
 def _load_ml_state(user_id: str) -> Optional[MLState]:
-    path = _state_path(user_id)
-    if not path.exists():
+    if not _DATABASE_URL:
         return None
     try:
-        with path.open() as f:
-            return _deserialize_ml_state(json.load(f))
+        with psycopg.connect(_DATABASE_URL) as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT state_json FROM ml_state WHERE user_id = %s", (user_id,))
+                row = cur.fetchone()
+        if row is None:
+            return None
+        return _deserialize_ml_state(json.loads(row[0]))
     except Exception as e:
         print(f"[warn] Failed to load MLState for {user_id}: {e}")
         return None
+
+
+def _load_all_ml_states() -> Dict[str, MLState]:
+    if not _DATABASE_URL:
+        return {}
+    try:
+        with psycopg.connect(_DATABASE_URL) as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT user_id, state_json FROM ml_state")
+                rows = cur.fetchall()
+        result = {}
+        for user_id, state_json in rows:
+            try:
+                result[user_id] = _deserialize_ml_state(json.loads(state_json))
+            except Exception as e:
+                print(f"[warn] Could not deserialize MLState for {user_id}: {e}")
+        return result
+    except Exception as e:
+        print(f"[warn] Failed to load all MLStates: {e}")
+        return {}
 
 
 # ── In-memory state store ──────────────────────────────────────────────────────
@@ -134,18 +170,32 @@ _ml_states: Dict[str, MLState] = {}
 # ── App lifespan ───────────────────────────────────────────────────────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Load persisted states on startup
-    for path in DATA_DIR.glob("ml_state_*.json"):
-        user_id = path.stem.replace("ml_state_", "")
-        state = _load_ml_state(user_id)
-        if state is not None:
-            _ml_states[user_id] = state
-            print(f"[startup] Loaded MLState for user '{user_id}'")
+    # Ensure ml_state table exists
+    if _DATABASE_URL:
+        try:
+            with psycopg.connect(_DATABASE_URL) as conn:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        CREATE TABLE IF NOT EXISTS ml_state (
+                            user_id TEXT PRIMARY KEY,
+                            state_json TEXT NOT NULL,
+                            updated_at TIMESTAMPTZ DEFAULT NOW()
+                        )
+                    """)
+                    conn.commit()
+        except Exception as e:
+            print(f"[warn] Could not create ml_state table: {e}")
+
+    # Load persisted states from DB into memory
+    loaded = _load_all_ml_states()
+    _ml_states.update(loaded)
+    for uid in loaded:
+        print(f"[startup] Loaded MLState for user '{uid}' from DB")
     yield
-    # Save all states on shutdown
+    # Flush all states to DB on shutdown
     for user_id, state in _ml_states.items():
         _save_ml_state(user_id, state)
-        print(f"[shutdown] Saved MLState for user '{user_id}'")
+        print(f"[shutdown] Saved MLState for user '{user_id}' to DB")
 
 
 # ── FastAPI app ────────────────────────────────────────────────────────────────

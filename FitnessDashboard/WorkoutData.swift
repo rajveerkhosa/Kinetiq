@@ -271,6 +271,83 @@ class WorkoutDataStore: ObservableObject {
         }
     }
 
+    // Pulls session + set history from the server and populates local store.
+    // Called after login so Progress and Strength views have data immediately.
+    func syncFromServer(userId: Int) {
+        Task {
+            guard let sessionsURL = URL(string: "https://kinetiq-dzfm.onrender.com/sessions/\(userId)") else { return }
+            guard let (sessData, _) = try? await URLSession.shared.data(from: sessionsURL),
+                  let sessJSON = try? JSONSerialization.jsonObject(with: sessData) as? [String: Any],
+                  let sessions = sessJSON["sessions"] as? [[String: Any]] else { return }
+
+            let dateFmt = DateFormatter()
+            dateFmt.dateFormat = "yyyy-MM-dd"
+
+            var synced: [WorkoutSession] = []
+            for sess in sessions {
+                guard let sessionId = sess["session_id"] as? Int,
+                      let dateStr = sess["session_date"] as? String,
+                      let sessionDate = dateFmt.date(from: dateStr) else { continue }
+                let planName = sess["plan_name"] as? String ?? "Workout"
+                let durationMinutes = sess["duration_minutes"] as? Int ?? 0
+
+                guard let setsURL = URL(string: "https://kinetiq-dzfm.onrender.com/sets/\(sessionId)"),
+                      let (setsData, _) = try? await URLSession.shared.data(from: setsURL),
+                      let setsJSON = try? JSONSerialization.jsonObject(with: setsData) as? [String: Any],
+                      let sets = setsJSON["sets"] as? [[String: Any]] else { continue }
+
+                // Group sets by exercise name
+                var exerciseSets: [String: (muscleGroup: String, sets: [ExerciseSet])] = [:]
+                for set in sets {
+                    guard let exName = set["exercise_name"] as? String,
+                          let setNum = set["set_number"] as? Int,
+                          let weight = set["weight_lb"] as? Double,
+                          let reps = set["reps"] as? Int else { continue }
+                    let muscle = set["muscle_group"] as? String ?? ""
+                    let rpe = set["rpe"] as? Double
+                    let es = ExerciseSet(weight: weight, reps: reps, setNumber: setNum, rpe: rpe)
+                    if exerciseSets[exName] == nil {
+                        exerciseSets[exName] = (muscleGroup: muscle, sets: [])
+                    }
+                    exerciseSets[exName]!.sets.append(es)
+                }
+
+                let exercises = exerciseSets.map { name, data in
+                    Exercise(name: name, sets: data.sets.sorted { $0.setNumber < $1.setNumber }, muscleGroup: data.muscleGroup)
+                }
+                synced.append(WorkoutSession(date: sessionDate, type: planName, exercises: exercises, duration: durationMinutes))
+            }
+
+            let sorted = synced.sorted { $0.date > $1.date }
+            await MainActor.run {
+                if !sorted.isEmpty {
+                    self.recentWorkouts = sorted
+                    self.rebuildPersonalRecords()
+                }
+            }
+        }
+    }
+
+    func rebuildPersonalRecords() {
+        // Collect best E1RM per exercise across all history
+        var bestE1RM: [String: Double] = [:]
+        for session in recentWorkouts {
+            for exercise in session.exercises {
+                let estimates = exercise.sets
+                    .filter { $0.reps > 0 && $0.reps <= 12 && $0.weight > 0 }
+                    .map { $0.weight * (1 + Double($0.reps) / 30.0) }
+                if let best = estimates.max() {
+                    bestE1RM[exercise.name] = max(bestE1RM[exercise.name] ?? 0, best)
+                }
+            }
+        }
+        // Top 5 by E1RM, predicted = 4-week goal at 1.5%/week
+        let top5 = bestE1RM.sorted { $0.value > $1.value }.prefix(5)
+        personalRecords = top5.map { name, e1rm in
+            PersonalRecord(exercise: name, current: Int(e1rm), predicted: Int(e1rm * 1.06))
+        }
+    }
+
     func resetAllData() {
         recentWorkouts = []
         personalRecords = []

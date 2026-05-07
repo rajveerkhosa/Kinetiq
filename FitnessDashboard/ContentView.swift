@@ -1,9 +1,16 @@
 import SwiftUI
 
+class ActiveWorkoutManager: ObservableObject {
+    static let shared = ActiveWorkoutManager()
+    @Published var isActive = false
+    @Published var workoutType = ""
+}
+
 struct ContentView: View {
     @State private var isAuthenticated = false
     @State private var selectedTab = 1
     @ObservedObject var profile = UserProfile.shared
+    @ObservedObject var workoutManager = ActiveWorkoutManager.shared
 
     var body: some View {
         ZStack {
@@ -52,9 +59,20 @@ struct ContentView: View {
                 }
                 .accentColor(.black)
             }
+
+            // Workout overlay — sits above TabView so no tabs bleed through
+            if workoutManager.isActive {
+                ActiveWorkoutView(
+                    isPresented: $workoutManager.isActive,
+                    workoutType: workoutManager.workoutType
+                )
+                .ignoresSafeArea()
+                .transition(.identity)
+            }
         }
         .animation(nil, value: isAuthenticated)
         .animation(nil, value: profile.hasCompletedOnboarding)
+        .animation(nil, value: workoutManager.isActive)
     }
 }
 
