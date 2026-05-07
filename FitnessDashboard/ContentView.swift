@@ -6,49 +6,55 @@ struct ContentView: View {
     @ObservedObject var profile = UserProfile.shared
 
     var body: some View {
-        if !isAuthenticated {
-            LoginView(isAuthenticated: $isAuthenticated)
-        } else if !profile.hasCompletedOnboarding {
-            OnboardingContainerView()
-        } else {
-            TabView(selection: $selectedTab) {
-                ProgressView()
-                    .tabItem {
-                        Image(systemName: "chart.line.uptrend.xyaxis")
-                        Text("Progress")
-                    }
-                    .tag(0)
+        ZStack {
+            Color.black.ignoresSafeArea()
 
-                KinetiqView()
-                    .tabItem {
-                        Image(systemName: "square.grid.2x2")
-                        Text("Dashboard")
-                    }
-                    .tag(1)
+            if !isAuthenticated {
+                LoginView(isAuthenticated: $isAuthenticated)
+            } else if !profile.hasCompletedOnboarding {
+                OnboardingContainerView()
+            } else {
+                TabView(selection: $selectedTab) {
+                    ProgressView()
+                        .tabItem {
+                            Image(systemName: "chart.line.uptrend.xyaxis")
+                            Text("Progress")
+                        }
+                        .tag(0)
 
-                NutritionLogView()
-                    .tabItem {
-                        Image(systemName: "fork.knife")
-                        Text("Nutrition")
-                    }
-                    .tag(2)
+                    KinetiqView()
+                        .tabItem {
+                            Image(systemName: "square.grid.2x2")
+                            Text("Dashboard")
+                        }
+                        .tag(1)
 
-                StrengthView()
-                    .tabItem {
-                        Image(systemName: "dumbbell.fill")
-                        Text("Strength")
-                    }
-                    .tag(3)
+                    NutritionLogView()
+                        .tabItem {
+                            Image(systemName: "fork.knife")
+                            Text("Nutrition")
+                        }
+                        .tag(2)
 
-                AccountView()
-                    .tabItem {
-                        Image(systemName: "person.fill")
-                        Text("Account")
-                    }
-                    .tag(4)
+                    StrengthView()
+                        .tabItem {
+                            Image(systemName: "dumbbell.fill")
+                            Text("Strength")
+                        }
+                        .tag(3)
+
+                    AccountView()
+                        .tabItem {
+                            Image(systemName: "person.fill")
+                            Text("Account")
+                        }
+                        .tag(4)
+                }
+                .accentColor(.black)
             }
-            .accentColor(.black)
         }
+        .animation(nil, value: isAuthenticated)
+        .animation(nil, value: profile.hasCompletedOnboarding)
     }
 }
 

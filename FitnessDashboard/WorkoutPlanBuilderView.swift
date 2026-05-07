@@ -124,6 +124,45 @@ struct WorkoutPlanBuilderView: View {
                                             }
                                         }
                                         .padding(.top, 4)
+
+                                        // Reps control
+                                        HStack {
+                                            Text("Reps:")
+                                                .font(.subheadline)
+                                                .foregroundColor(.gray)
+
+                                            Spacer()
+
+                                            HStack(spacing: 12) {
+                                                Button(action: {
+                                                    if selectedExercises[index].targetReps > 1 {
+                                                        selectedExercises[index].targetReps -= 1
+                                                    }
+                                                }) {
+                                                    Image(systemName: "minus.circle.fill")
+                                                        .font(.title3)
+                                                        .foregroundColor(selectedExercises[index].targetReps > 1 ? .black : .gray.opacity(0.3))
+                                                }
+                                                .disabled(selectedExercises[index].targetReps <= 1)
+
+                                                Text("\(selectedExercises[index].targetReps)")
+                                                    .font(.headline)
+                                                    .foregroundColor(.black)
+                                                    .frame(minWidth: 30)
+
+                                                Button(action: {
+                                                    if selectedExercises[index].targetReps < 50 {
+                                                        selectedExercises[index].targetReps += 1
+                                                    }
+                                                }) {
+                                                    Image(systemName: "plus.circle.fill")
+                                                        .font(.title3)
+                                                        .foregroundColor(selectedExercises[index].targetReps < 50 ? .black : .gray.opacity(0.3))
+                                                }
+                                                .disabled(selectedExercises[index].targetReps >= 50)
+                                            }
+                                        }
+                                        .padding(.top, 4)
                                     }
                                     .padding()
                                     .background(Color.white)
@@ -220,7 +259,7 @@ struct WorkoutPlanBuilderView: View {
                     "plan_id": planId,
                     "exercise_name": exercise.name,
                     "target_sets": exercise.sets.count,
-                    "target_reps": 10
+                    "target_reps": exercise.targetReps
                 ]
                 exRequest.httpBody = try JSONSerialization.data(withJSONObject: exBody)
                 _ = try await URLSession.shared.data(for: exRequest)

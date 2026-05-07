@@ -22,7 +22,8 @@ class FoodSearchViewModel: ObservableObject {
 
     func search() {
         searchTask?.cancel()
-        guard !query.trimmingCharacters(in: .whitespaces).isEmpty else {
+        let currentQuery = query.trimmingCharacters(in: .whitespaces)
+        guard !currentQuery.isEmpty else {
             results = []
             return
         }
@@ -30,12 +31,18 @@ class FoodSearchViewModel: ObservableObject {
         isLoading = true
 
         searchTask = Task {
+            // Debounce: wait 300ms so rapid keystrokes only fire one request
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            guard !Task.isCancelled else { return }
+
             do {
-                let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
-                let urlStr = "https://world.openfoodfacts.net/api/v2/search?search_terms=\(encoded)&page_size=25&fields=product_name,brands,nutriments,serving_size&lc=en&cc=us"
+                let encoded = currentQuery.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? currentQuery
+                let urlStr = "https://world.openfoodfacts.org/api/v2/search?search_terms=\(encoded)&page_size=25&fields=product_name,brands,nutriments,serving_size&lc=en&cc=us"
                 guard let url = URL(string: urlStr) else { return }
 
-                let (data, _) = try await URLSession.shared.data(from: url)
+                var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData)
+                request.timeoutInterval = 15
+                let (data, _) = try await URLSession.shared.data(for: request)
                 guard !Task.isCancelled else { return }
 
                 let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]

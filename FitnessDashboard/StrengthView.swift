@@ -401,9 +401,14 @@ struct StrengthView: View {
                 .padding(.horizontal, 18).padding(.top, 18).padding(.bottom, 12)
 
             if sets.isEmpty {
-                Text("No sets logged yet")
-                    .font(.subheadline).foregroundColor(.gray)
-                    .padding(.horizontal, 18).padding(.bottom, 18)
+                VStack {
+                    Spacer()
+                    Text("No sets logged yet")
+                        .font(.subheadline).foregroundColor(.gray)
+                    Spacer()
+                }
+                .frame(height: 120)
+                .frame(maxWidth: .infinity)
             } else {
                 ForEach(Array(sets.enumerated()), id: \.offset) { idx, set in
                     HStack {
