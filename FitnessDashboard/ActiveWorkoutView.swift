@@ -504,6 +504,31 @@ struct ActiveWorkoutView: View {
                 showConfetti = false
                 showCompletionScreen = true
             }
+
+	private func savePrediction(exerciseName: String, response: KinetiqService.SuggestionResponse) {
+    let userId = UserDefaults.standard.integer(forKey: "user_id")
+    guard userId > 0 else { return }
+
+    let predictedPerformance = "\(Int(response.nextWeight)) \(response.unit) x \(response.nextReps) reps"
+    let recommendedAdjustment = response.action
+
+    Task {
+        guard let url = URL(string: "https://kinetiq-dzfm.onrender.com/ml/predictions") else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let body: [String: Any] = [
+            "user_id": userId,
+            "exercise_name": exerciseName,
+            "predicted_performance": predictedPerformance,
+            "recommended_adjustment": recommendedAdjustment
+        ]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        _ = try? await URLSession.shared.data(for: request)
+    }
+}
+
         }
     }
 
@@ -765,6 +790,7 @@ func loadDefaultExercises() {
                 isLoadingSuggestion[key] = false
                 if let response = response {
                     WorkoutDataStore.shared.storeSuggestion(response, for: exerciseName)
+		    savePrediction(exerciseName: exerciseName, response: response)
                 }
             }
         }

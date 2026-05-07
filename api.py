@@ -136,6 +136,56 @@ def login(credentials: LoginUser):
     
     return {"message": "Login successful", "user": {k: v for k, v in user.items() if k != "password"}}
 #****************************
+#Machine Learning Route
+#****************************
+
+class LogMLPrediction(BaseModel):
+    user_id: int
+    exercise_name: str
+    predicted_performance: str
+    recommended_adjustment: str
+
+@app.post("/ml/predictions")
+def log_ml_prediction(data: LogMLPrediction):
+    with psycopg.connect(DATABASE_URL) as conn:
+        with conn.cursor() as cur:
+            # Look up exercise_id by name
+            cur.execute("""
+                SELECT exercise_id FROM exercises WHERE exercise_name = %s
+            """, (data.exercise_name,))
+            result = cur.fetchone()
+            if not result:
+                raise HTTPException(status_code=404, detail="Exercise not found")
+            exercise_id = result[0]
+
+            cur.execute("""
+                INSERT INTO ml_prediction 
+                    (user_id, exercise_id, date_generated, predicted_performance, recommended_adjustment)
+                VALUES (%s, %s, NOW(), %s, %s)
+                RETURNING prediction_id
+            """, (data.user_id, exercise_id, data.predicted_performance, data.recommended_adjustment))
+            prediction_id = cur.fetchone()[0]
+            conn.commit()
+    return {"prediction_id": prediction_id}
+
+@app.get("/ml/predictions/{user_id}/{exercise_name}")
+def get_ml_predictions(user_id: int, exercise_name: str):
+    with psycopg.connect(DATABASE_URL) as conn:
+        with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
+            cur.execute("""
+                SELECT mp.*, e.exercise_name
+                FROM ml_prediction mp
+                JOIN exercises e ON mp.exercise_id = e.exercise_id
+                WHERE mp.user_id = %s AND e.exercise_name = %s
+                ORDER BY mp.date_generated DESC
+            """, (user_id, exercise_name))
+            predictions = cur.fetchall()
+    return {"predictions": predictions}
+
+
+
+
+#****************************
 #Exercise API route
 #****************************
 
