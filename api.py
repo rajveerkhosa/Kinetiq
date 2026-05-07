@@ -16,6 +16,16 @@ DATABASE_URL = os.getenv("DATABASE_URL", "").replace("postgres://", "postgresql:
 NINJA_API_KEY = os.getenv("API_KEY")
 app = FastAPI()
 
+@app.on_event("startup")
+def run_migrations():
+    with psycopg.connect(DATABASE_URL) as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                ALTER TABLE workoutsession
+                ADD COLUMN IF NOT EXISTS duration_minutes INTEGER DEFAULT 0
+            """)
+            conn.commit()
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -377,10 +387,10 @@ def log_session(data: LogSession):
         with conn.cursor() as cur:
             # Create the session
             cur.execute("""
-                INSERT INTO workoutsession (user_id, plan_id, session_date, start_workout_flag, workout_miss_flag)
-                VALUES (%s, %s, %s, true, %s)
+                INSERT INTO workoutsession (user_id, plan_id, session_date, duration_minutes, start_workout_flag, workout_miss_flag)
+                VALUES (%s, %s, %s, %s, true, %s)
                 RETURNING session_id
-            """, (data.user_id, data.plan_id, data.session_date, data.missed))
+            """, (data.user_id, data.plan_id, data.session_date, data.duration_minutes, data.missed))
             session_id = cur.fetchone()[0]
 
             # Update last used date on plan
