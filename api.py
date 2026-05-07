@@ -399,27 +399,47 @@ def log_session(data: LogSession):
             conn.commit()
     return {"session_id": session_id}
 
-@app.post("/sets")
-def log_set(data: LogSet):
+@app.get("/sessions/{user_id}")
+def get_sessions(user_id: int):
     with psycopg.connect(DATABASE_URL) as conn:
-        with conn.cursor() as cur:
-            # Look up exercise_id by name
+        with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
             cur.execute("""
-                SELECT exercise_id FROM exercises WHERE exercise_name = %s
-            """, (data.exercise_name,))
-            result = cur.fetchone()
-            if not result:
-                raise HTTPException(status_code=404, detail="Exercise not found")
-            exercise_id = result[0]
+                SELECT ws.*, wp.plan_name
+                FROM workoutsession ws
+                JOIN workoutplan wp ON ws.plan_id = wp.plan_id
+                WHERE ws.user_id = %s
+                ORDER BY ws.session_date DESC
+            """, (user_id,))
+            sessions = cur.fetchall()
+    return {"sessions": sessions}
 
+@app.get("/sets/{session_id}")
+def get_sets(session_id: int):
+    with psycopg.connect(DATABASE_URL) as conn:
+        with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
             cur.execute("""
-                INSERT INTO workoutsets (workout_session_id, exercise_id, set_number, weight_lb, reps)
-                VALUES (%s, %s, %s, %s, %s)
-                RETURNING set_id
-            """, (data.session_id, exercise_id, data.set_number, data.weight_lb, data.reps))
-            set_id = cur.fetchone()[0]
-            conn.commit()
-    return {"set_id": set_id}
+                SELECT ws.*, e.exercise_name, e.muscle_group
+                FROM workoutsets ws
+                JOIN exercises e ON ws.exercise_id = e.exercise_id
+                WHERE ws.workout_session_id = %s
+                ORDER BY ws.exercise_id, ws.set_number
+            """, (session_id,))
+            sets = cur.fetchall()
+    return {"sets": sets}
+
+@app.get("/plans/{user_id}/active")
+def get_active_plan(user_id: int):
+    with psycopg.connect(DATABASE_URL) as conn:
+        with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
+            cur.execute("""
+                SELECT * FROM workoutplan
+                WHERE user_id = %s AND active_flag = true
+                LIMIT 1
+            """, (user_id,))
+            plan = cur.fetchone()
+    if not plan:
+        raise HTTPException(status_code=404, detail="No active plan found")
+    return {"plan": plan}
 
 @app.post("/sets")
 def log_set(data: LogSet):
@@ -569,5 +589,3 @@ def delete_food_entry(entry_id: int):
             cur.execute("DELETE FROM nutrition_entries WHERE entry_id = %s", (entry_id,))
             conn.commit()
     return {"message": "Entry deleted"}
-
-

@@ -120,96 +120,9 @@ if let error = errorMessage {
     }
 
 private func completeOnboarding() {
-    isLoading = true
-    errorMessage = nil
-
-    Task {
-        do {
-            guard let fullName = profile.fullName else {
-                errorMessage = "Missing profile information. Please go back and complete all fields."
-                isLoading = false
-                return
-            }
-
-            let sex = profile.sex?.rawValue ?? "other"
-            let heightCm = profile.heightCm ?? 170.0
-            let weightKg = profile.weightKg ?? 70.0
-            let experience = profile.liftingExperience?.rawValue ?? "beginner"
-            let age = profile.age ?? 25
-
-            // Convert height from cm to ft and inches
-            let totalInches = heightCm / 2.54
-            let heightFt = Int(totalInches / 12)
-            let heightIn = Int(totalInches.truncatingRemainder(dividingBy: 12))
-
-            // Convert weight from kg to lbs
-            let weightLb = weightKg * 2.20462
-
-            // Parse name
-            let nameParts = fullName.split(separator: " ").map(String.init)
-            let firstName = nameParts.first ?? fullName
-            let lastName = nameParts.count > 1 ? nameParts.last ?? "" : ""
-
-            // Today's date as journey started
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd"
-            let journeyStarted = formatter.string(from: Date())
-
-            // Build request body
-            let body: [String: Any] = [
-                "username": profile.fullName ?? firstName,
-                "email": UserDefaults.standard.string(forKey: "pendingEmail") ?? "",
-                "password": UserDefaults.standard.string(forKey: "pendingPassword") ?? "",
-                "first_name": firstName,
-                "middle_name": NSNull(),
-                "last_name": lastName,
-                "age": age,
-                "sex": sex,
-                "height_ft": heightFt,
-                "height_in": heightIn,
-                "weight_lb": weightLb,
-                "experience_level": experience,
-                "journey_started": journeyStarted
-            ]
-
-            guard let url = URL(string: "https://kinetiq-dzfm.onrender.com/register") else { return }
-            var request = URLRequest(url: url)
-            request.httpMethod = "POST"
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.httpBody = try JSONSerialization.data(withJSONObject: body)
-
-            let (data, response) = try await URLSession.shared.data(for: request)
-
-            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
-                // Save user_id from response
-                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let userId = json["user_id"] as? Int {
-                    UserDefaults.standard.set(userId, forKey: "user_id")
-                }
-
-                // Clean up temp credentials
-                UserDefaults.standard.removeObject(forKey: "pendingEmail")
-                UserDefaults.standard.removeObject(forKey: "pendingPassword")
-
-                await MainActor.run {
-                    profile.hasCompletedOnboarding = true
-                    currentStep = .complete
-                }
-            } else {
-                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-                let detail = json?["detail"] as? String ?? "Registration failed"
-                await MainActor.run {
-                    errorMessage = detail
-                    isLoading = false
-                }
-            }
-        } catch {
-            await MainActor.run {
-                errorMessage = error.localizedDescription
-                isLoading = false
-            }
-        }
-    }
+    UserDefaults.standard.removeObject(forKey: "pendingEmail")
+    UserDefaults.standard.removeObject(forKey: "pendingPassword")
+    currentStep = .complete
 }
 
 
@@ -237,7 +150,7 @@ struct PrimaryGoalPage: View {
                     .foregroundColor(.white.opacity(0.6))
             }
 
-            ScrollView(.vertical, showsIndicators: false) {
+            ScrollView(.vertical, showsIndicators: true) {
                 VStack(spacing: 12) {
                     ForEach(FitnessGoal.allCases, id: \.self) { goal in
                         Button(action: {
@@ -265,6 +178,7 @@ struct PrimaryGoalPage: View {
                                         .font(.system(size: 14))
                                         .foregroundColor(profile.primaryGoal == goal ? .black.opacity(0.6) : .white.opacity(0.5))
                                         .fixedSize(horizontal: false, vertical: true)
+                                        .multilineTextAlignment(.leading)
                                 }
 
                                 Spacer()
@@ -490,7 +404,7 @@ struct WorkoutSplitPage: View {
                     .foregroundColor(.white.opacity(0.6))
             }
 
-            ScrollView(.vertical, showsIndicators: false) {
+            ScrollView(.vertical, showsIndicators: true) {
                 VStack(spacing: 12) {
                     ForEach(WorkoutSplit.allCases, id: \.self) { split in
                         Button(action: {
@@ -524,6 +438,7 @@ struct WorkoutSplitPage: View {
                                         .font(.system(size: 14))
                                         .foregroundColor(profile.workoutSplit == split ? .black.opacity(0.6) : .white.opacity(0.5))
                                         .fixedSize(horizontal: false, vertical: true)
+                                        .multilineTextAlignment(.leading)
                                 }
 
                                 Spacer()

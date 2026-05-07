@@ -132,49 +132,59 @@ struct OnboardingBasicsView: View {
 
 struct HealthKitPermissionPageModern: View {
     @Binding var showAlert: Bool
+    @ObservedObject private var profile = UserProfile.shared
+    @State private var isConnected = false
+    @State private var isLoading = false
 
     var body: some View {
         VStack(spacing: 32) {
             Spacer()
 
-            Image(systemName: "heart.circle.fill")
+            Image(systemName: isConnected ? "checkmark.circle.fill" : "heart.circle.fill")
                 .font(.system(size: 80))
                 .foregroundStyle(
                     LinearGradient(
-                        colors: [Color.pink, Color.red],
+                        colors: isConnected ? [Color.green, Color(red: 0.1, green: 0.7, blue: 0.3)] : [Color.pink, Color.red],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
                 )
+                .animation(.spring(response: 0.4, dampingFraction: 0.7), value: isConnected)
 
             VStack(spacing: 12) {
-                Text("Connect Apple Health")
+                Text(isConnected ? "Health Connected!" : "Connect Apple Health")
                     .font(.system(size: 32, weight: .bold, design: .rounded))
                     .foregroundColor(.white)
 
-                Text("Sync your health data for personalized insights")
+                Text(isConnected ? "Your data has been synced" : "Sync your health data for personalized insights")
                     .font(.system(size: 17))
                     .foregroundColor(.white.opacity(0.7))
                     .multilineTextAlignment(.center)
             }
 
-            Button(action: {
-                requestHealthKitAuthorization()
-            }) {
-                Text("Connect Health")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 56)
-                    .background(
-                        LinearGradient(
-                            colors: [Color.pink, Color.red],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
+            Button(action: { requestHealthKitAuthorization() }) {
+                ZStack {
+                    if isLoading {
+                        ProgressView().tint(.white)
+                    } else {
+                        Text(isConnected ? "Connected" : "Connect Health")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundColor(.white)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 56)
+                .background(
+                    LinearGradient(
+                        colors: isConnected ? [Color.green, Color(red: 0.1, green: 0.7, blue: 0.3)] : [Color.pink, Color.red],
+                        startPoint: .leading,
+                        endPoint: .trailing
                     )
-                    .clipShape(Capsule())
+                )
+                .clipShape(Capsule())
+                .animation(.easeInOut(duration: 0.3), value: isConnected)
             }
+            .disabled(isConnected || isLoading)
             .padding(.horizontal, 40)
 
             Spacer()
@@ -188,19 +198,70 @@ struct HealthKitPermissionPageModern: View {
             return
         }
 
-        let healthStore = HKHealthStore()
+        isLoading = true
+        let store = HKHealthStore()
+
         let typesToRead: Set<HKObjectType> = [
             HKObjectType.quantityType(forIdentifier: .height)!,
             HKObjectType.quantityType(forIdentifier: .bodyMass)!,
-            HKObjectType.quantityType(forIdentifier: .bodyFatPercentage)!,
             HKObjectType.characteristicType(forIdentifier: .biologicalSex)!,
             HKObjectType.characteristicType(forIdentifier: .dateOfBirth)!
         ]
 
-        healthStore.requestAuthorization(toShare: [], read: typesToRead) { success, error in
-            if success {
-                // Fetch data in background
+        store.requestAuthorization(toShare: [], read: typesToRead) { success, _ in
+            guard success else {
+                DispatchQueue.main.async { isLoading = false }
+                return
             }
+            fetchHealthData(using: store)
+        }
+    }
+
+    private func fetchHealthData(using store: HKHealthStore) {
+        let group = DispatchGroup()
+
+        if let bioSex = try? store.biologicalSex().biologicalSex {
+            DispatchQueue.main.async {
+                switch bioSex {
+                case .male:   profile.sex = .male
+                case .female: profile.sex = .female
+                default: break
+                }
+            }
+        }
+
+        if let components = try? store.dateOfBirthComponents(),
+           let dob = Calendar.current.date(from: components) {
+            DispatchQueue.main.async { profile.birthDate = dob }
+        }
+
+        group.enter()
+        let weightType = HKQuantityType.quantityType(forIdentifier: .bodyMass)!
+        let weightQuery = HKSampleQuery(sampleType: weightType, predicate: nil, limit: 1,
+                                        sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)]) { _, samples, _ in
+            if let sample = samples?.first as? HKQuantitySample {
+                let kg = sample.quantity.doubleValue(for: .gramUnit(with: .kilo))
+                DispatchQueue.main.async { profile.weightKg = kg }
+            }
+            group.leave()
+        }
+        store.execute(weightQuery)
+
+        group.enter()
+        let heightType = HKQuantityType.quantityType(forIdentifier: .height)!
+        let heightQuery = HKSampleQuery(sampleType: heightType, predicate: nil, limit: 1,
+                                         sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)]) { _, samples, _ in
+            if let sample = samples?.first as? HKQuantitySample {
+                let cm = sample.quantity.doubleValue(for: .meterUnit(with: .centi))
+                DispatchQueue.main.async { profile.heightCm = cm }
+            }
+            group.leave()
+        }
+        store.execute(heightQuery)
+
+        group.notify(queue: .main) {
+            isLoading = false
+            isConnected = true
         }
     }
 }

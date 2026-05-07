@@ -182,7 +182,9 @@ struct LoginView: View {
                         }
                     }
                     await MainActor.run {
-                        withAnimation { isAuthenticated = true }
+                        var t = Transaction()
+                        t.disablesAnimations = true
+                        withTransaction(t) { isAuthenticated = true }
                     }
                 } else {
                     let detail = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["detail"] as? String

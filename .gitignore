@@ -13,6 +13,9 @@ build/
 dist/
 *.egg-info/
 
+# Data files (local import only)
+data/
+
 # VS Code
 .vscode/
 

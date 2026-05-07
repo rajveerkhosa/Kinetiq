@@ -248,22 +248,14 @@ class WorkoutDataStore: ObservableObject {
            let records = try? JSONDecoder().decode([PersonalRecord].self, from: data) {
             self.personalRecords = records
         } else {
-            // Default personal records for new users
-            self.personalRecords = [
-                PersonalRecord(exercise: "Bench Press", current: 185, predicted: 195),
-                PersonalRecord(exercise: "Squat", current: 225, predicted: 240),
-                PersonalRecord(exercise: "Deadlift", current: 315, predicted: 335),
-                PersonalRecord(exercise: "Overhead Press", current: 95, predicted: 105)
-            ]
+            self.personalRecords = []
         }
 
-        // Load recent workouts from UserDefaults (with sample data fallback)
         if let data = UserDefaults.standard.data(forKey: "recentWorkouts"),
            let workouts = try? JSONDecoder().decode([WorkoutSession].self, from: data) {
             self.recentWorkouts = workouts
         } else {
-            // Sample data for first launch
-            self.recentWorkouts = WorkoutDataStore.sampleWorkouts
+            self.recentWorkouts = []
         }
     }
 

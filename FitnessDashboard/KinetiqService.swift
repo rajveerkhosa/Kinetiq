@@ -8,9 +8,7 @@ import Foundation
 class KinetiqService {
     static let shared = KinetiqService()
 
-    // Change to your Mac's local IP address when testing on a real device.
-    // e.g. "http://192.168.1.x:8000"
-    var baseURL = "http://localhost:8000"
+    var baseURL = "https://kinetiq-ml.onrender.com"
 
     private let encoder: JSONEncoder = {
         let e = JSONEncoder()
@@ -197,7 +195,7 @@ class KinetiqService {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 5.0
+        request.timeoutInterval = 35.0
         request.httpBody = try encoder.encode(request_body)
 
         let (data, response) = try await URLSession.shared.data(for: request)
