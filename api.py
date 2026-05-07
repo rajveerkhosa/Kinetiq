@@ -183,6 +183,47 @@ def get_ml_predictions(user_id: int, exercise_name: str):
     return {"predictions": predictions}
 
 
+class LogAutoAdjustment(BaseModel):
+    session_exercise_id: int
+    old_weight_lb: float
+    new_weight_lb: float
+    old_reps: int
+    new_reps: int
+    reason: str
+
+@app.post("/autoadjustments")
+def log_auto_adjustment(data: LogAutoAdjustment):
+    with psycopg.connect(DATABASE_URL) as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO autoadjustments 
+                    (session_exercise_id, old_weight_lb, new_weight_lb, 
+                     old_reps, new_reps, reason, date_applied)
+                VALUES (%s, %s, %s, %s, %s, %s, NOW())
+                RETURNING adjustment_id
+            """, (
+                data.session_exercise_id,
+                data.old_weight_lb,
+                data.new_weight_lb,
+                data.old_reps,
+                data.new_reps,
+                data.reason
+            ))
+            adjustment_id = cur.fetchone()[0]
+            conn.commit()
+    return {"adjustment_id": adjustment_id}
+
+@app.get("/autoadjustments/{session_exercise_id}")
+def get_auto_adjustments(session_exercise_id: int):
+    with psycopg.connect(DATABASE_URL) as conn:
+        with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
+            cur.execute("""
+                SELECT * FROM autoadjustments 
+                WHERE session_exercise_id = %s
+                ORDER BY date_applied DESC
+            """, (session_exercise_id,))
+            adjustments = cur.fetchall()
+    return {"adjustments": adjustments}
 
 
 #****************************
