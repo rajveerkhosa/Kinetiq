@@ -8,11 +8,16 @@ import httpx
 import psycopg.rows
 import bcrypt
 import os
+import secrets
+import smtplib
+from email.mime.text import MIMEText
 from dotenv import load_dotenv
 
 load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL", "").replace("postgres://", "postgresql://", 1)
+GMAIL_USER = os.getenv("GMAIL_USER")
+GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD")
 NINJA_API_KEY = os.getenv("API_KEY")
 app = FastAPI()
 
@@ -23,6 +28,13 @@ def run_migrations():
             cur.execute("""
                 ALTER TABLE workoutsession
                 ADD COLUMN IF NOT EXISTS duration_minutes INTEGER DEFAULT 0
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS password_reset_codes (
+                    email TEXT PRIMARY KEY,
+                    code TEXT NOT NULL,
+                    expires_at TIMESTAMPTZ NOT NULL
+                )
             """)
             conn.commit()
 
@@ -599,3 +611,91 @@ def delete_food_entry(entry_id: int):
             cur.execute("DELETE FROM nutrition_entries WHERE entry_id = %s", (entry_id,))
             conn.commit()
     return {"message": "Entry deleted"}
+
+
+# ── Nutrition Search ───────────────────────────────────────────────────────────
+
+@app.get("/nutrition/search")
+async def nutrition_search(q: str):
+    if not NINJA_API_KEY:
+        raise HTTPException(status_code=503, detail="Nutrition API not configured")
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            "https://api.api-ninjas.com/v1/nutrition",
+            params={"query": q},
+            headers={"X-Api-Key": NINJA_API_KEY},
+            timeout=10.0
+        )
+    if resp.status_code != 200:
+        return {"items": []}
+    return {"items": resp.json()}
+
+
+# ── Password Reset ─────────────────────────────────────────────────────────────
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+class ResetPasswordRequest(BaseModel):
+    email: str
+    code: str
+    new_password: str
+
+def _send_reset_email(to_email: str, code: str) -> bool:
+    if not GMAIL_USER or not GMAIL_APP_PASSWORD:
+        return False
+    try:
+        msg = MIMEText(
+            f"Your Kinetiq password reset code is:\n\n"
+            f"    {code}\n\n"
+            f"This code expires in 15 minutes.\n\n"
+            f"If you didn't request this, you can safely ignore this email."
+        )
+        msg["Subject"] = "Kinetiq — Password Reset Code"
+        msg["From"] = GMAIL_USER
+        msg["To"] = to_email
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(GMAIL_USER, GMAIL_APP_PASSWORD)
+            server.sendmail(GMAIL_USER, [to_email], msg.as_string())
+        return True
+    except Exception as e:
+        print(f"[warn] Failed to send reset email to {to_email}: {e}")
+        return False
+
+@app.post("/forgot-password")
+def forgot_password(data: ForgotPasswordRequest):
+    email = data.email.strip().lower()
+    with psycopg.connect(DATABASE_URL) as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT user_id FROM users WHERE email = %s", (email,))
+            if not cur.fetchone():
+                # Always return success to not expose whether email is registered
+                return {"message": "If that email is registered, a code was sent."}
+            code = str(secrets.randbelow(900000) + 100000)
+            cur.execute("""
+                INSERT INTO password_reset_codes (email, code, expires_at)
+                VALUES (%s, %s, NOW() + INTERVAL '15 minutes')
+                ON CONFLICT (email) DO UPDATE
+                    SET code = EXCLUDED.code, expires_at = EXCLUDED.expires_at
+            """, (email, code))
+            conn.commit()
+    _send_reset_email(email, code)
+    return {"message": "If that email is registered, a code was sent."}
+
+@app.post("/reset-password")
+def reset_password(data: ResetPasswordRequest):
+    email = data.email.strip().lower()
+    with psycopg.connect(DATABASE_URL) as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT code FROM password_reset_codes
+                WHERE email = %s AND expires_at > NOW()
+            """, (email,))
+            row = cur.fetchone()
+            if not row or row[0] != data.code:
+                raise HTTPException(status_code=400, detail="Invalid or expired code.")
+            hashed = bcrypt.hashpw(data.new_password.encode(), bcrypt.gensalt()).decode()
+            cur.execute("UPDATE users SET password_hash = %s WHERE email = %s", (hashed, email))
+            cur.execute("DELETE FROM password_reset_codes WHERE email = %s", (email,))
+            conn.commit()
+    return {"message": "Password reset successfully."}
