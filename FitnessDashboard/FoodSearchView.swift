@@ -5,11 +5,13 @@ private let lightBg = Color(red: 0.95, green: 0.95, blue: 0.97)
 struct FoodSearchResult: Identifiable {
     let id = UUID()
     let name: String
-    let calories: Double    // per serving
+    let brand: String
+    let calories: Double    // per 100g
     let protein: Double
     let fat: Double
     let carbs: Double
-    let servingSizeG: Double
+    let servingSize: Double?   // grams per serving (optional)
+    let servingUnit: String
 }
 
 class FoodSearchViewModel: ObservableObject {
@@ -41,14 +43,16 @@ class FoodSearchViewModel: ObservableObject {
                 let items = json?["items"] as? [[String: Any]] ?? []
 
                 let parsed: [FoodSearchResult] = items.compactMap { item in
-                    guard let name = item["name"] as? String else { return nil }
-                    let cal  = item["calories"] as? Double ?? 0
-                    let prot = item["protein_g"] as? Double ?? 0
-                    let fat  = item["fat_total_g"] as? Double ?? 0
-                    let carb = item["carbohydrates_total_g"] as? Double ?? 0
-                    let srvG = item["serving_size_g"] as? Double ?? 100
+                    guard let name = item["name"] as? String, !name.isEmpty else { return nil }
+                    let cal  = item["calories_100g"] as? Double ?? 0
+                    let prot = item["protein_100g"] as? Double ?? 0
+                    let fat  = item["fat_100g"] as? Double ?? 0
+                    let carb = item["carbs_100g"] as? Double ?? 0
+                    let brand = item["brand"] as? String ?? ""
+                    let srvSize = item["serving_size"] as? Double
+                    let srvUnit = item["serving_unit"] as? String ?? "g"
                     guard cal > 0 || prot > 0 else { return nil }
-                    return FoodSearchResult(name: name, calories: cal, protein: prot, fat: fat, carbs: carb, servingSizeG: srvG)
+                    return FoodSearchResult(name: name, brand: brand, calories: cal, protein: prot, fat: fat, carbs: carb, servingSize: srvSize, servingUnit: srvUnit)
                 }
 
                 await MainActor.run {
@@ -210,16 +214,22 @@ struct FoodResultRow: View {
                             .foregroundColor(.gray)
                     }
                     .font(.caption)
-                    Text("per \(Int(result.servingSizeG))g serving")
-                        .font(.caption2).foregroundColor(.gray.opacity(0.6))
+                    if !result.brand.isEmpty {
+                        Text(result.brand)
+                            .font(.caption2).foregroundColor(.gray.opacity(0.6)).lineLimit(1)
+                    } else {
+                        Text("per 100g").font(.caption2).foregroundColor(.gray.opacity(0.5))
+                    }
                 }
                 Spacer()
                 Button(action: {
+                    let servingLabel = result.servingSize.map { "\(Int($0))\(result.servingUnit)" } ?? "100g"
+                    let qty = result.servingSize.map { $0 / 100.0 } ?? 1.0
                     store.add(FoodEntry(
-                        name: result.name.capitalized, brand: "",
+                        name: result.name.capitalized, brand: result.brand,
                         calories: result.calories, protein: result.protein,
                         fat: result.fat, carbs: result.carbs,
-                        servingSize: "\(Int(result.servingSizeG))g", quantity: 1, timestamp: Date()
+                        servingSize: servingLabel, quantity: qty, timestamp: Date()
                     ), for: date)
                     onAdded()
                 }) {
@@ -263,7 +273,11 @@ struct FoodDetailView: View {
                     .font(.title3).fontWeight(.bold).foregroundColor(.black)
                     .multilineTextAlignment(.center).padding(.horizontal)
 
-                Text("Per \(Int(result.servingSizeG))g serving")
+                if !result.brand.isEmpty {
+                    Text(result.brand).font(.subheadline).foregroundColor(.gray)
+                }
+
+                Text("Values per 100g · adjust servings below")
                     .font(.caption).foregroundColor(.gray)
 
                 HStack(spacing: 16) {
@@ -274,7 +288,7 @@ struct FoodDetailView: View {
                 }
 
                 VStack(spacing: 8) {
-                    Text("Number of servings").font(.caption).foregroundColor(.gray)
+                    Text("Servings (×100g)").font(.caption).foregroundColor(.gray)
                     HStack(spacing: 16) {
                         Button(action: { if quantity > 0.5 { quantity = max(0.1, quantity - 0.5); quantityText = formatQ(quantity) } }) {
                             Image(systemName: "minus.circle.fill").font(.title2).foregroundColor(.black.opacity(0.7))
@@ -297,10 +311,10 @@ struct FoodDetailView: View {
 
                 Button(action: {
                     store.add(FoodEntry(
-                        name: result.name.capitalized, brand: "",
+                        name: result.name.capitalized, brand: result.brand,
                         calories: result.calories, protein: result.protein,
                         fat: result.fat, carbs: result.carbs,
-                        servingSize: "\(Int(result.servingSizeG))g", quantity: quantity, timestamp: Date()
+                        servingSize: "100g", quantity: quantity, timestamp: Date()
                     ), for: date)
                     dismiss(); onAdded()
                 }) {

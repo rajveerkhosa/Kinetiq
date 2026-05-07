@@ -19,6 +19,7 @@ DATABASE_URL = os.getenv("DATABASE_URL", "").replace("postgres://", "postgresql:
 GMAIL_USER = os.getenv("GMAIL_USER")
 GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD")
 NINJA_API_KEY = os.getenv("API_KEY")
+FDC_API_KEY = os.getenv("FDC_API_KEY", "DEMO_KEY")
 app = FastAPI()
 
 @app.on_event("startup")
@@ -531,18 +532,56 @@ class LogFoodEntry(BaseModel):
 
 @app.get("/nutrition/search")
 async def nutrition_search(q: str):
-    if not NINJA_API_KEY:
-        raise HTTPException(status_code=503, detail="Nutrition API not configured")
-    async with httpx.AsyncClient() as client:
-        resp = await client.get(
-            "https://api.api-ninjas.com/v1/nutrition",
-            params={"query": q},
-            headers={"X-Api-Key": NINJA_API_KEY},
-            timeout=10.0
-        )
-    if resp.status_code != 200:
-        return {"items": []}
-    return {"items": resp.json()}
+    # USDA FoodData Central — free key, accurate macro data
+    # Priority: Foundation (whole foods) + SR Legacy, then Branded
+    nutrient_ids = {1008: "calories", 1003: "protein", 1004: "fat", 1005: "carbs"}
+    results = []
+    for data_type in ["Foundation,SR Legacy", "Branded"]:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                "https://api.nal.usda.gov/fdc/v1/foods/search",
+                params={
+                    "query": q,
+                    "dataType": data_type,
+                    "pageSize": 10,
+                    "api_key": FDC_API_KEY,
+                },
+                timeout=12.0
+            )
+        if resp.status_code != 200:
+            continue
+        foods = resp.json().get("foods", [])
+        for food in foods:
+            # Build nutrient lookup from the search response
+            nutrients: dict = {}
+            for n in food.get("foodNutrients", []):
+                nid = n.get("nutrientId") or n.get("nutrientNumber")
+                val = n.get("value")
+                if nid and val is not None:
+                    try:
+                        nutrients[int(nid)] = float(val)
+                    except (ValueError, TypeError):
+                        pass
+            cal  = nutrients.get(1008, 0)
+            prot = nutrients.get(1003, 0)
+            fat  = nutrients.get(1004, 0)
+            carb = nutrients.get(1005, 0)
+            if cal == 0 and prot == 0:
+                continue
+            brand = food.get("brandOwner") or food.get("brandName") or ""
+            results.append({
+                "name": food.get("description", ""),
+                "brand": brand,
+                "calories_100g": round(cal, 1),
+                "protein_100g": round(prot, 1),
+                "fat_100g": round(fat, 1),
+                "carbs_100g": round(carb, 1),
+                "serving_size": food.get("servingSize"),
+                "serving_unit": food.get("servingSizeUnit", "g"),
+            })
+        if len(results) >= 15:
+            break
+    return {"items": results[:20]}
 
 
 @app.post("/nutrition/log")
